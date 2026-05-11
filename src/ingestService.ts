@@ -715,12 +715,13 @@ function buildActivityItems(preview: StoredPreview) {
     activityItem(preview, "解析输入", `${preview.parsedInput.urls.length} 个链接，${preview.parsedInput.githubRepos.length} 个 GitHub 候选`, "success")
   ];
   if (preview.douyin.length) {
-    items.push(activityItem(preview, "抖音解析", `${preview.douyin.length} 个视频来源`, "success"));
+    const imageCount = preview.douyin.reduce((sum, item) => sum + (item.images?.length ?? 0), 0);
+    items.push(activityItem(preview, "抖音解析", `${preview.douyin.length} 个来源，${imageCount} 张图片`, "success"));
   }
   if (preview.ocr.length) {
-    const frames = preview.ocr.reduce((sum, item) => sum + item.framesAnalyzed, 0);
+    const mediaCount = preview.ocr.reduce((sum, item) => sum + item.framesAnalyzed, 0);
     const hasError = preview.ocr.some((item) => item.error);
-    items.push(activityItem(preview, "视频抽帧/OCR", `${frames} 帧，${preview.ocr.filter((item) => item.text.trim()).length} 段文本`, hasError ? "warning" : "success"));
+    items.push(activityItem(preview, "视频/图片 OCR", `${mediaCount} 个媒体单元，${preview.ocr.filter((item) => item.text.trim()).length} 段文本`, hasError ? "warning" : "success"));
   }
   if (preview.githubRepos.length) {
     items.push(activityItem(preview, "GitHub 研究", preview.githubRepos.map((repo) => repo.fullName).join("、"), "success"));

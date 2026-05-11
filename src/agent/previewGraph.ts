@@ -136,15 +136,25 @@ export async function runPreviewAgentGraph(deps: PreviewAgentDeps): Promise<Stor
           try {
             const metadata = await runTrackedTool(deps, "douyin_pipeline", "douyin_parser", { url }, () => deps.douyin.parse(url));
             douyinResults.push(metadata);
+            const imageUrls = metadata.images ?? [];
             const videoUrl = metadata.videoUrlHQ ?? metadata.videoUrl;
-            const ocr = await runTrackedTool(
-              deps,
-              "douyin_pipeline",
-              "video_downloader+frame_extractor+ocr_reader",
-              { sourceUrl: url, videoUrl },
-              () => deps.ocr.analyzeVideo(videoUrl),
-              (result) => (result.error ? "warning" : "success")
-            );
+            const ocr = imageUrls.length
+              ? await runTrackedTool(
+                  deps,
+                  "douyin_pipeline",
+                  "image_downloader+ocr_reader",
+                  { sourceUrl: url, imageCount: imageUrls.length, imageUrls: imageUrls.slice(0, 5) },
+                  () => deps.ocr.analyzeImages(imageUrls),
+                  (result) => (result.error ? "warning" : "success")
+                )
+              : await runTrackedTool(
+                  deps,
+                  "douyin_pipeline",
+                  "video_downloader+frame_extractor+ocr_reader",
+                  { sourceUrl: url, videoUrl },
+                  () => deps.ocr.analyzeVideo(videoUrl),
+                  (result) => (result.error ? "warning" : "success")
+                );
             ocrResults.push(ocr);
             if (ocr.error) warnings.push(`OCR: ${ocr.error}`);
           } catch (error) {
@@ -260,7 +270,7 @@ export async function runPreviewAgentGraph(deps: PreviewAgentDeps): Promise<Stor
           warnings.push("没有确定的 GitHub repo，也没有生成知识卡片；确认后会写入 Inbox，建议补充项目名、链接或你关心的方向后重新生成。");
         }
         if (state.ocrResults.some((result) => !result.text.trim())) {
-          warnings.push("OCR 没有识别出有效项目文本；已使用描述、原始输入和 GitHub 搜索兜底。");
+          warnings.push("视频/图片 OCR 没有识别出有效文本；已使用描述、原始输入和 GitHub 搜索兜底。");
         }
         return { warnings, analysis };
       }, `${state.repos.length} repos, ocr=${state.ocrResults.reduce((sum, item) => sum + item.text.length, 0)}`, undefined)
@@ -391,7 +401,7 @@ function inferStepStatus(nodeName: string, state: PreviewStateType): "success" |
 function summarizeNode(nodeName: string, state: PreviewStateType): string {
   if (nodeName === "parse_input") return state.parsedInput ? summarizeParsed(state.parsedInput) : "";
   if (nodeName === "source_type_router") return state.route;
-  if (nodeName === "douyin_pipeline") return `${state.douyinResults.length} videos, ${state.ocrResults.reduce((sum, item) => sum + item.framesAnalyzed, 0)} frames`;
+  if (nodeName === "douyin_pipeline") return `${state.douyinResults.length} douyin, ${state.ocrResults.reduce((sum, item) => sum + item.framesAnalyzed, 0)} media`;
   if (nodeName === "webpage_pipeline") return state.webpageResults.length ? state.webpageResults.map((item) => `${item.title ?? item.url} chars=${item.text.length}`).join("; ") : "没有网页正文";
   if (nodeName === "github_pipeline") return state.repos.length ? state.repos.map((repo) => `${repo.fullName} stars=${repo.stars}`).join("; ") : "没有确定 repo";
   if (nodeName === "vault_context_retriever") return `${state.existingIndex.split(/\n/).filter(Boolean).length} existing projects`;
@@ -409,11 +419,14 @@ function summarizeToolOutput(nodeName: string, result: Partial<PreviewStateType>
         nickname: item.nickname,
         desc: item.desc,
         awemeId: item.awemeId,
-        hasVideo: Boolean(item.videoUrl || item.videoUrlHQ)
+        hasVideo: Boolean(item.videoUrl || item.videoUrlHQ),
+        imageCount: item.images?.length ?? 0
       })),
       ocr: (result.ocrResults ?? []).map((item) => ({
         framesAnalyzed: item.framesAnalyzed,
         available: item.available,
+        sourceImageCount: item.sourceImages?.length ?? 0,
+        imageTextCount: item.imageTexts?.length ?? 0,
         textPreview: item.text.slice(0, 600),
         error: item.error
       })),
@@ -564,7 +577,8 @@ function sanitizeToolOutput(toolName: string, output: unknown): unknown {
       nickname: item.nickname,
       desc: item.desc,
       awemeId: item.awemeId,
-      hasVideo: Boolean(item.videoUrl || item.videoUrlHQ)
+      hasVideo: Boolean(item.videoUrl || item.videoUrlHQ),
+      imageCount: item.images?.length ?? 0
     };
   }
   if (toolName.includes("ocr_reader") && output && typeof output === "object") {
@@ -575,6 +589,8 @@ function sanitizeToolOutput(toolName: string, output: unknown): unknown {
       available: item.available,
       subtitleLength: item.subtitleText?.length ?? 0,
       frameTextCount: item.frameTexts?.length ?? 0,
+      imageTextCount: item.imageTexts?.length ?? 0,
+      sourceImageCount: item.sourceImages?.length ?? 0,
       tempCleaned: item.tempCleaned,
       error: item.error
     };
@@ -678,10 +694,12 @@ export function shouldSearchGitHub(rawText: string, candidateQuery: string): boo
 
 function formatDouyin(metadata: DouyinMetadata): string {
   return `source=${metadata.sourceUrl}
+type=${metadata.type ?? ""}
 nickname=${metadata.nickname ?? ""}
 desc=${metadata.desc ?? ""}
 aweme_id=${metadata.awemeId ?? ""}
-video=${metadata.videoUrlHQ ?? metadata.videoUrl ?? ""}`;
+video=${metadata.videoUrlHQ ?? metadata.videoUrl ?? ""}
+images=${(metadata.images ?? []).join("\n")}`;
 }
 
 function formatWebpage(page: WebpageExtractResult): string {

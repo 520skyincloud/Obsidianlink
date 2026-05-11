@@ -36,6 +36,7 @@ export interface DouyinMetadata {
   type?: string;
   videoUrl?: string;
   videoUrlHQ?: string;
+  images?: string[];
   nickname?: string;
   desc?: string;
   awemeId?: string;
@@ -47,8 +48,10 @@ export interface OcrResult {
   framesAnalyzed: number;
   available: boolean;
   sourceVideo?: string;
+  sourceImages?: string[];
   subtitleText?: string;
   frameTexts?: string[];
+  imageTexts?: string[];
   tempCleaned?: boolean;
   error?: string;
 }

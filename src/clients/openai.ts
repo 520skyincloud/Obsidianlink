@@ -153,7 +153,7 @@ ${input.rawText}
 抖音解析文本：
 ${input.douyinText || "(none)"}
 
-视频 OCR 文本：
+视频/图文 OCR 文本：
 ${input.ocrText || "(none)"}
 
 网页正文抽取：

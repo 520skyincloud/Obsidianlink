@@ -67,6 +67,41 @@ describe("DouyinClient", () => {
     expect(result.videoUrlHQ).toBe("https://example.com/720-h264.mp4");
   });
 
+  it("normalizes BugPk image-text payloads to image metadata", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          code: 200,
+          msg: "解析成功",
+          data: {
+            type: "image",
+            title: "三张图讲清楚提示词优化",
+            desc: "图文教程：提示词优化方法",
+            aweme_id: "7633983870261562674",
+            author: { name: "图文作者" },
+            cover: "https://example.com/cover.webp",
+            images: ["https://example.com/one.webp", "https://example.com/two.webp"],
+            live_photo: [{ image: "https://example.com/two.webp" }, { image: "https://example.com/three.webp" }]
+          }
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+
+    const result = await new DouyinClient().parse("https://v.douyin.com/images/");
+
+    expect(result.type).toBe("image");
+    expect(result.nickname).toBe("图文作者");
+    expect(result.desc).toBe("图文教程：提示词优化方法");
+    expect(result.awemeId).toBe("7633983870261562674");
+    expect(result.images).toEqual([
+      "https://example.com/one.webp",
+      "https://example.com/two.webp",
+      "https://example.com/three.webp",
+      "https://example.com/cover.webp"
+    ]);
+  });
+
   it("builds parser URLs for query-style endpoints", () => {
     expect(buildDouyinParseUrl("https://api.bugpk.com/api/douyin", "https://v.douyin.com/demo/")).toBe(
       "https://api.bugpk.com/api/douyin?url=https%3A%2F%2Fv.douyin.com%2Fdemo%2F"

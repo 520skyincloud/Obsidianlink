@@ -16,6 +16,9 @@ interface DouyinApiResponse {
   video_url?: string;
   video_url_HQ?: string;
   url?: string | null;
+  images?: string[] | null;
+  cover?: string | null;
+  live_photo?: DouyinLivePhoto[] | null;
   video_backup?: DouyinVideoBackup[] | null;
   data?: {
     type?: string;
@@ -26,6 +29,9 @@ interface DouyinApiResponse {
     nickname?: string;
     desc?: string;
     aweme_id?: string;
+    images?: string[] | null;
+    cover?: string | null;
+    live_photo?: DouyinLivePhoto[] | null;
     author?: {
       name?: string;
       nickname?: string;
@@ -44,6 +50,11 @@ interface DouyinVideoBackup {
   codec?: string;
 }
 
+interface DouyinLivePhoto {
+  image?: string;
+  video?: string;
+}
+
 export class DouyinClient {
   async parse(url: string): Promise<DouyinMetadata> {
     const endpoint = buildDouyinParseUrl(config.DOUYIN_PARSE_API, url);
@@ -58,16 +69,29 @@ export class DouyinClient {
     const data = payload.data;
     const awemeId = data?.aweme_id ?? payload.aweme_id ?? (await resolveAwemeId(url));
     const videoBackup = pickVideoBackup(data?.video_backup ?? payload.video_backup);
+    const images = collectImages(data?.images ?? payload.images, data?.live_photo ?? payload.live_photo, data?.cover ?? payload.cover);
     return {
       type: data?.type ?? payload.type,
       videoUrl: data?.url ?? payload.url ?? data?.video_url ?? payload.video_url ?? videoBackup?.url,
       videoUrlHQ: videoBackup?.url ?? data?.video_url_HQ ?? payload.video_url_HQ ?? data?.url ?? payload.url ?? undefined,
+      images,
       nickname: data?.nickname ?? data?.author?.name ?? data?.author?.nickname ?? payload.author?.name ?? payload.author?.nickname,
       desc: data?.desc ?? payload.desc ?? data?.title ?? payload.title,
       awemeId,
       sourceUrl: url
     };
   }
+}
+
+function collectImages(images?: string[] | null, livePhotos?: DouyinLivePhoto[] | null, cover?: string | null): string[] {
+  return [
+    ...(images ?? []),
+    ...(livePhotos ?? []).map((item) => item.image ?? ""),
+    cover ?? ""
+  ]
+    .map((item) => item.trim())
+    .filter((item): item is string => Boolean(item))
+    .filter((item, index, all) => all.indexOf(item) === index);
 }
 
 export function buildDouyinParseUrl(base: string, inputUrl: string): string {
