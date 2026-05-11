@@ -1,0 +1,48 @@
+{
+  "name": "create-langgraph",
+  "version": "1.1.5",
+  "description": "Create a new LangGraph project",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "bin": "dist/cli.js",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/langchain-ai/langgraphjs.git",
+    "directory": "libs/create-langgraph"
+  },
+  "scripts": {
+    "clean": "rm -rf dist/ .turbo/",
+    "cli": "tsx src/cli.mts",
+    "cli:watch": "tsx watch src/cli.mts",
+    "build": "pnpm turbo build:internal --filter=create-langgraph",
+    "build:internal": "pnpm clean && pnpm tsc --outDir dist",
+    "prepublish": "pnpm build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.9.1",
+    "@commander-js/extra-typings": "^13.0.0",
+    "commander": "^13.0.0",
+    "dedent": "^1.5.3",
+    "extract-zip": "^2.0.1",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.11",
+    "tsx": "^4.19.3",
+    "typescript": "^4.9.5 || ^5.4.5",
+    "vitest": "^4.0.16"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "keywords": []
+}

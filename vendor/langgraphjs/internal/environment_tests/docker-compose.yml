@@ -1,0 +1,131 @@
+version: "3"
+services:
+  test-exports-esbuild:
+    image: node:22
+    working_dir: /app
+    volumes:
+      - ../../internal/environment_tests/test-exports-esbuild:/package
+      - ../../internal/environment_tests/scripts:/scripts
+      - ../../libs/langgraph:/langgraph
+      - ../../libs/langgraph-core:/langgraph-core
+      - ../../libs/checkpoint:/checkpoint
+      - ../../libs/sdk:/sdk
+      - ../../libs/sdk-react:/sdk-react
+      - ../../libs/sdk-vue:/sdk-vue
+      - ../../libs/sdk-svelte:/sdk-svelte
+      - ../../libs/sdk-angular:/sdk-angular
+    command: bash /scripts/docker-ci-entrypoint.sh
+  test-exports-esm:
+    image: node:22
+    environment:
+      PUPPETEER_SKIP_DOWNLOAD: "true"
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "true"
+    working_dir: /app
+    volumes:
+      - ../../internal/environment_tests/test-exports-esm:/package
+      - ../../internal/environment_tests/scripts:/scripts
+      - ../../libs/langgraph:/langgraph
+      - ../../libs/langgraph-core:/langgraph-core
+      - ../../libs/checkpoint:/checkpoint
+      - ../../libs/sdk:/sdk
+      - ../../libs/sdk-react:/sdk-react
+      - ../../libs/sdk-vue:/sdk-vue
+      - ../../libs/sdk-svelte:/sdk-svelte
+      - ../../libs/sdk-angular:/sdk-angular
+    command: bash /scripts/docker-ci-entrypoint.sh
+  test-exports-tsc:
+    image: node:22
+    working_dir: /app
+    volumes:
+      - ../../internal/environment_tests/test-exports-tsc:/package
+      - ../../internal/environment_tests/scripts:/scripts
+      - ../../libs/langgraph:/langgraph
+      - ../../libs/langgraph-core:/langgraph-core
+      - ../../libs/checkpoint:/checkpoint
+      - ../../libs/sdk:/sdk
+      - ../../libs/sdk-react:/sdk-react
+      - ../../libs/sdk-vue:/sdk-vue
+      - ../../libs/sdk-svelte:/sdk-svelte
+      - ../../libs/sdk-angular:/sdk-angular
+    command: bash /scripts/docker-ci-entrypoint.sh
+  test-exports-cjs:
+    image: node:22
+    working_dir: /app
+    volumes:
+      - ../../internal/environment_tests/test-exports-cjs:/package
+      - ../../internal/environment_tests/scripts:/scripts
+      - ../../libs/langgraph:/langgraph
+      - ../../libs/langgraph-core:/langgraph-core
+      - ../../libs/checkpoint:/checkpoint
+      - ../../libs/sdk:/sdk
+      - ../../libs/sdk-react:/sdk-react
+      - ../../libs/sdk-vue:/sdk-vue
+      - ../../libs/sdk-svelte:/sdk-svelte
+      - ../../libs/sdk-angular:/sdk-angular
+    command: bash /scripts/docker-ci-entrypoint.sh
+  test-exports-cf:
+    image: node:22
+    working_dir: /app
+    volumes:
+      - ../../internal/environment_tests/test-exports-cf:/package
+      - ../../internal/environment_tests/scripts:/scripts
+      - ../../libs/langgraph:/langgraph
+      - ../../libs/langgraph-core:/langgraph-core
+      - ../../libs/checkpoint:/checkpoint
+      - ../../libs/sdk:/sdk
+      - ../../libs/sdk-react:/sdk-react
+      - ../../libs/sdk-vue:/sdk-vue
+      - ../../libs/sdk-svelte:/sdk-svelte
+      - ../../libs/sdk-angular:/sdk-angular
+    command: bash /scripts/docker-ci-entrypoint.sh
+  test-exports-vercel:
+    image: node:22
+    environment:
+      PUPPETEER_SKIP_DOWNLOAD: "true"
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "true"
+    working_dir: /app
+    volumes:
+      - ../../internal/environment_tests/test-exports-vercel:/package
+      - ../../internal/environment_tests/scripts:/scripts
+      - ../../libs/langgraph:/langgraph
+      - ../../libs/langgraph-core:/langgraph-core
+      - ../../libs/checkpoint:/checkpoint
+      - ../../libs/sdk:/sdk
+      - ../../libs/sdk-react:/sdk-react
+      - ../../libs/sdk-vue:/sdk-vue
+      - ../../libs/sdk-svelte:/sdk-svelte
+      - ../../libs/sdk-angular:/sdk-angular
+    command: bash /scripts/docker-ci-entrypoint.sh
+  test-exports-vite:
+    image: node:22
+    working_dir: /app
+    volumes:
+      - ../../internal/environment_tests/test-exports-vite:/package
+      - ../../internal/environment_tests/scripts:/scripts
+      - ../../libs/langgraph:/langgraph
+      - ../../libs/langgraph-core:/langgraph-core
+      - ../../libs/checkpoint:/checkpoint
+      - ../../libs/sdk:/sdk
+      - ../../libs/sdk-react:/sdk-react
+      - ../../libs/sdk-vue:/sdk-vue
+      - ../../libs/sdk-svelte:/sdk-svelte
+      - ../../libs/sdk-angular:/sdk-angular
+    command: bash /scripts/docker-ci-entrypoint.sh
+  success:
+    image: alpine:3.14
+    command: echo "Success"
+    depends_on:
+      test-exports-esbuild:
+        condition: service_completed_successfully
+      test-exports-esm:
+        condition: service_completed_successfully
+      test-exports-tsc:
+        condition: service_completed_successfully
+      test-exports-cjs:
+        condition: service_completed_successfully
+      test-exports-cf:
+        condition: service_completed_successfully
+      test-exports-vercel:
+        condition: service_completed_successfully
+      test-exports-vite:
+        condition: service_completed_successfully

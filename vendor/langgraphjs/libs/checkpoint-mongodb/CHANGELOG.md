@@ -1,0 +1,102 @@
+# @langchain/langgraph-checkpoint-mongodb
+
+## 1.3.0
+
+### Minor Changes
+
+- [#2326](https://github.com/langchain-ai/langgraphjs/pull/2326) [`36916ed`](https://github.com/langchain-ai/langgraphjs/commit/36916ed86e63eb07249a68ecf0508e3b986ba587) Thanks [@tadjik1](https://github.com/tadjik1)! - feat: add MongoDBStore for long-term memory
+
+  New `MongoDBStore` class for persisting data across threads and sessions — user preferences, learned facts, agent memory, and more.
+
+  - Store and retrieve JSON documents organized by hierarchical namespaces
+  - Search with field-based filtering and comparison operators
+  - Vector similarity search with manual embedding (bring your own embedding model) or auto embedding (MongoDB generates embeddings via Voyage AI)
+  - Automatic document expiration via configurable TTL
+
+## 1.2.0
+
+### Minor Changes
+
+- [#1991](https://github.com/langchain-ai/langgraphjs/pull/1991) [`38db67f`](https://github.com/langchain-ai/langgraphjs/commit/38db67f3599daffcbec5d04f16f36e69abe22e08) Thanks [@vanb](https://github.com/vanb)! - Add optional `enableTimestamps` parameter to `MongoDBSaver` that sets an `upserted_at` date via MongoDB's `$currentDate` operator on every upsert. Useful for MongoDB TTL indexes, auditing, or debugging.
+
+## 1.1.7
+
+### Patch Changes
+
+- [#1943](https://github.com/langchain-ai/langgraphjs/pull/1943) [`814c76d`](https://github.com/langchain-ai/langgraphjs/commit/814c76dc3938d0f6f7e17ca3bc11d6a12270b2a1) Thanks [@hntrl](https://github.com/hntrl)! - fix(mongodb): validate filter values are primitives
+
+  Added validation to ensure filter values in the `list()` method are primitive types
+  (string, number, boolean, or null).
+
+## 1.1.6
+
+### Patch Changes
+
+- [#1862](https://github.com/langchain-ai/langgraphjs/pull/1862) [`e7aeffe`](https://github.com/langchain-ai/langgraphjs/commit/e7aeffeb72aaccd8c94f8e78708f747ce21bf23c) Thanks [@dqbd](https://github.com/dqbd)! - retry release: Updates the checkpoint-mongodb to append client metadata
+
+## 1.1.5
+
+### Patch Changes
+
+- [#1856](https://github.com/langchain-ai/langgraphjs/pull/1856) [`a9fa28b`](https://github.com/langchain-ai/langgraphjs/commit/a9fa28b6adad16050fcf5d5876a3924253664217) Thanks [@christian-bromann](https://github.com/christian-bromann)! - retry release: Updates the checkpoint-mongodb to append client metadata
+
+## 1.1.4
+
+### Patch Changes
+
+- [#1853](https://github.com/langchain-ai/langgraphjs/pull/1853) [`a84c1ff`](https://github.com/langchain-ai/langgraphjs/commit/a84c1ff18289653ff4715bd0db4ac3d06600556e) Thanks [@christian-bromann](https://github.com/christian-bromann)! - retry release: Updates the checkpoint-mongodb to append client metadata
+
+## 1.1.3
+
+### Patch Changes
+
+- [#1850](https://github.com/langchain-ai/langgraphjs/pull/1850) [`e9f7e8e`](https://github.com/langchain-ai/langgraphjs/commit/e9f7e8e9e6b8851cb7dd68e31d2f1867b62bd6bd) Thanks [@christian-bromann](https://github.com/christian-bromann)! - retry release: Updates the checkpoint-mongodb to append client metadata
+
+## 1.1.2
+
+### Patch Changes
+
+- 3ec85a4: retry release: Updates the checkpoint-mongodb to append client metadata
+
+## 1.1.1
+
+### Patch Changes
+
+- 3613386: retry release: Updates the checkpoint-mongodb to append client metadata
+
+## 1.1.0
+
+### Minor Changes
+
+- 4b7832e: Updates the checkpoint-mongodb to append client metadata
+
+## 1.0.0
+
+### Major Changes
+
+- 1e1ecbb: This release updates the package for compatibility with LangGraph v1.0. See the [v1.0 release notes](https://docs.langchain.com/oss/javascript/releases/langgraph-v1) for details on what's new.
+
+### Patch Changes
+
+- Updated dependencies [1e1ecbb]
+  - @langchain/langgraph-checkpoint@1.0.0
+
+## 0.1.1
+
+### Patch Changes
+
+- 11c7807: Add support for @langchain/core 1.0.0-alpha
+
+## 0.1.0
+
+### Minor Changes
+
+- ccbcbc1: Add delete thread method to checkpointers
+- Updated dependencies [773ec0d]
+  - @langchain/langgraph-checkpoint@0.1.0
+
+### Patch Changes
+
+- Updated dependencies [ccbcbc1]
+- Updated dependencies [10f292a]
+- Updated dependencies [3fd7f73]

@@ -1,0 +1,41 @@
+{
+  "name": "obsidianlink",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/src/server.js",
+    "service:start": "node scripts/obsidianlink.mjs start",
+    "service:stop": "node scripts/obsidianlink.mjs stop",
+    "service:restart": "node scripts/obsidianlink.mjs restart",
+    "service:status": "node scripts/obsidianlink.mjs status",
+    "launchd:print": "node scripts/launchd.mjs print",
+    "launchd:install": "node scripts/launchd.mjs install",
+    "launchd:uninstall": "node scripts/launchd.mjs uninstall",
+    "doctor": "node scripts/obsidianlink.mjs doctor",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.1.45",
+    "@larksuiteoapi/node-sdk": "^1.63.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.9.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "qq-guild-bot": "^2.9.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "imports": {
+    "#langgraph": "./vendor/langgraphjs/libs/langgraph-core/dist/index.js"
+  }
+}

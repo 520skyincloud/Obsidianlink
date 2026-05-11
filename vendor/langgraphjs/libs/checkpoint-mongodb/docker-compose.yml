@@ -1,0 +1,9 @@
+services:
+  mongodb:
+    image: mongodb/mongodb-atlas-local:preview
+    environment:
+      MONGODB_INITDB_ROOT_USERNAME: user
+      MONGODB_INITDB_ROOT_PASSWORD: password
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY}
+    ports:
+      - "27017:27017"

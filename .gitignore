@@ -1,0 +1,13 @@
+.DS_Store
+node_modules/
+dist/
+.env
+.cache/
+coverage/
+data/
+*.log
+vendor/**/node_modules/
+vendor/**/.git/
+vendor/**/.turbo/
+vendor/**/.next/
+vendor/frp/
