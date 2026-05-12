@@ -108,6 +108,37 @@ Agent-Reach - 给 AI Agent 一键装上互联网能力
 - GitHub Token
 - 可选：ffmpeg、tesseract，用于视频/图片 OCR
 
+### 第一次部署清单
+
+第一次拿到项目时，按这个顺序做：
+
+```text
+1. 准备 Obsidian Vault 路径
+2. 准备 OpenAI 兼容模型接口
+3. 准备 GitHub Token
+4. 准备抖音解析接口
+5. 安装 OCR 工具
+6. 复制 .env.example 为 .env 并填写参数
+7. npm install
+8. npm run build
+9. npm run service:start
+10. 打开 http://127.0.0.1:38721/ 做配置测试
+11. 再接飞书 / QQ / 其他聊天入口
+```
+
+最小可用配置只需要：
+
+```bash
+OBSIDIAN_VAULT_PATH=你的 Obsidian Vault 绝对路径
+OPENAI_BASE_URL=OpenAI 兼容接口的 /v1 地址
+OPENAI_API_KEY=模型接口密钥
+OPENAI_MODEL=模型名
+GITHUB_TOKEN=GitHub Personal Access Token
+DOUYIN_PARSE_API=https://api.bugpk.com/api/douyin?url=
+```
+
+如果只想先跑通 GitHub 链接和普通想法，可以先不装 OCR；如果要处理抖音视频/图文，建议安装 `ffmpeg` 和 `tesseract`。
+
 安装：
 
 ```bash
@@ -179,25 +210,57 @@ npm run dev
 
 ## 配置说明
 
-`.env.example` 里列出了全部配置。常用字段：
+`.env.example` 里列出了全部配置。参数含义如下。
 
-```bash
-PORT=38721
-OBSIDIANLINK_DB_PATH=./data/obsidianlink.sqlite
-OBSIDIAN_VAULT_PATH=/Users/sky/Documents/obsidian/sky
+### 基础参数
 
-OPENAI_BASE_URL=http://your-openai-compatible-host/v1
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5.5
-OPENAI_TIMEOUT_MS=60000
+| 参数 | 是否必填 | 示例 | 含义 |
+|---|---:|---|---|
+| `PORT` | 否 | `38721` | 本机 HTTP 服务端口。控制台和 API 都跑在这个端口。 |
+| `OBSIDIANLINK_DB_PATH` | 否 | `./data/obsidianlink.sqlite` | SQLite 状态库路径。保存消息、任务、预览、日志和写入索引。 |
+| `OBSIDIAN_VAULT_PATH` | 是 | `/Users/sky/Documents/obsidian/sky` | Obsidian Vault 根目录。所有 Markdown 只会写入这个目录内。 |
+| `CONNECTOR_PUBLIC_BASE_URL` | 视情况 | `https://kb.example.com` | 公网回调基地址。长连接不需要；HTTP webhook 和飞书卡片按钮需要。 |
 
-GITHUB_TOKEN=
-DOUYIN_PARSE_API=https://api.bugpk.com/api/douyin?url=
+### 模型参数
 
-OCR_FRAME_INTERVAL_SECONDS=4
-OCR_MAX_FRAMES=8
-OCR_MAX_VIDEO_BYTES=83886080
-```
+| 参数 | 是否必填 | 示例 | 含义 |
+|---|---:|---|---|
+| `OPENAI_BASE_URL` | 是 | `http://your-host/v1` | OpenAI 兼容接口地址，必须到 `/v1`。 |
+| `OPENAI_API_KEY` | 是 | `sk-...` | 模型接口密钥。只写在本机 `.env`，不会提交。 |
+| `OPENAI_MODEL` | 是 | `gpt-5.5` | 用于分类、摘要、标题、联想的模型名。 |
+| `OPENAI_TIMEOUT_MS` | 否 | `60000` | 模型请求超时时间，单位毫秒。 |
+| `OPENAI_ALLOW_INSECURE_TLS` | 否 | `false` | 私有模型网关证书异常时才临时设为 `true`。正常不要开。 |
+
+### 内容工具参数
+
+| 参数 | 是否必填 | 示例 | 含义 |
+|---|---:|---|---|
+| `GITHUB_TOKEN` | 是 | `ghp_...` | 调 GitHub API 研究仓库，避免公开 API 限流。 |
+| `DOUYIN_PARSE_API` | 是 | `https://api.bugpk.com/api/douyin?url=` | 抖音解析接口。服务会把抖音链接拼到 `url=` 后面。 |
+| `OCR_FRAME_INTERVAL_SECONDS` | 否 | `4` | 视频 OCR 抽帧间隔。越小越细，越慢。 |
+| `OCR_MAX_FRAMES` | 否 | `8` | 视频最多抽多少帧；图文最多处理多少张图片。 |
+| `OCR_MAX_VIDEO_BYTES` | 否 | `83886080` | 视频下载上限，默认 80MB，避免大文件拖死本机。 |
+
+### 飞书参数
+
+| 参数 | 是否必填 | 示例 | 含义 |
+|---|---:|---|---|
+| `FEISHU_APP_ID` | 飞书必填 | `cli_xxx` | 飞书应用 App ID。长连接、回调回复、卡片都需要。 |
+| `FEISHU_APP_SECRET` | 飞书必填 | `xxx` | 飞书应用 App Secret。用于 SDK 连接和发消息。 |
+| `FEISHU_VERIFICATION_TOKEN` | 回调/事件建议填 | `xxx` | 飞书事件订阅和卡片回调校验 token。 |
+| `FEISHU_ENCRYPT_KEY` | 可选 | `xxx` | 如果飞书开启事件加密，需要填写。不开加密可以空。 |
+| `FEISHU_LONG_CONNECTION_ENABLED` | 长连接必填 | `true` | 是否启用飞书长连接。长连接不需要公网 URL。 |
+| `FEISHU_CARD_CALLBACK_ENABLED` | 卡片按钮必填 | `true` | 是否在飞书预览卡里显示可点击按钮。按钮回调需要公网地址。 |
+
+### QQ Bot 参数
+
+| 参数 | 是否必填 | 示例 | 含义 |
+|---|---:|---|---|
+| `QQ_BOT_APP_ID` | QQ 必填 | `123456` | QQ 开放平台机器人 App ID。 |
+| `QQ_BOT_TOKEN` | QQ 必填 | `xxx` | QQ 开放平台机器人 Token。 |
+| `QQ_BOT_SANDBOX` | 否 | `false` | 是否使用 QQ 沙箱环境。 |
+| `QQ_BOT_SDK_AUTOSTART` | 否 | `true` | 服务启动时是否自动启动 QQ Bot SDK session。 |
+| `QQ_BOT_FORWARD_SECRET` | 可选 | `xxx` | HTTP 转发模式的自定义校验密钥。 |
 
 安全约定：
 
@@ -264,7 +327,61 @@ curl -X POST http://127.0.0.1:38721/api/previews/pv_xxx/regenerate \
 
 飞书有两套完全不同的连接方式：长连接模式和公网回调模式。不要把它们混在一起。
 
-#### 3.1 长连接模式
+#### 3.1 当前推荐接法
+
+如果你是个人本机使用，推荐这样配：
+
+```bash
+FEISHU_APP_ID=你的飞书应用 App ID
+FEISHU_APP_SECRET=你的飞书应用 App Secret
+FEISHU_VERIFICATION_TOKEN=你的事件订阅 Verification Token
+FEISHU_LONG_CONNECTION_ENABLED=true
+
+# 如果没有公网地址，先关掉按钮，卡片会提示你用文字回复“入库知识/生成应用想法/入库并联想”
+FEISHU_CARD_CALLBACK_ENABLED=false
+CONNECTOR_PUBLIC_BASE_URL=http://127.0.0.1:38721
+```
+
+这套配置的效果：
+
+```text
+飞书消息 -> 飞书长连接 -> 本机 ObsidianLink -> LangGraph 处理 -> 飞书回复卡片/文本
+```
+
+它不要求公网地址，适合先把收消息、解析、预览、入库跑通。
+
+飞书开放平台侧需要做的事：
+
+```text
+1. 创建企业自建应用
+2. 开启机器人能力，并把机器人加到单聊或群聊
+3. 记录 App ID 和 App Secret，填到 .env
+4. 如果用长连接，订阅消息事件时选择“使用长连接接收事件”
+5. 给应用开通发送消息、接收消息相关权限，并发布/安装应用到当前企业
+6. 回到 ObsidianLink 控制台“接入通道”，启动飞书长连接并看状态
+```
+
+如果你已经有 HTTPS 公网地址或内网穿透，并且想点飞书卡片按钮，再改成：
+
+```bash
+FEISHU_CARD_CALLBACK_ENABLED=true
+CONNECTOR_PUBLIC_BASE_URL=https://your-public-domain
+```
+
+并在飞书开放平台把卡片回调地址配置为：
+
+```text
+https://your-public-domain/connectors/feishu/card
+```
+
+这就是当前推荐组合：
+
+```text
+消息接收：飞书长连接，不需要公网
+卡片按钮：公网 / 内网穿透回调，可选
+```
+
+#### 3.2 长连接模式
 
 长连接是推荐的本机开发方式。
 
@@ -281,6 +398,7 @@ FEISHU_LONG_CONNECTION_ENABLED=true
 - ObsidianLink 会用飞书 SDK 主动连到飞书开放平台，事件从这条连接推回本机。
 - 适合本机常驻、个人使用、开发调试。
 - 如果只是“飞书发消息给机器人，机器人回复预览/文本”，优先用这个。
+- 飞书机器人必须被拉进会话，且应用需要能接收 `im.message.receive_v1` 消息事件。
 
 启动方式：
 
@@ -290,7 +408,20 @@ npm run service:restart
 
 或在控制台“接入通道”里启动飞书长连接。
 
-#### 3.2 公网回调模式
+长连接能处理这些业务：
+
+| 用户在飞书发什么 | 系统怎么处理 |
+|---|---|
+| `你好` / `help` | 立即回复，不生成知识预览。 |
+| 抖音链接 | 解析视频或图文，OCR，模型整理，生成预览卡。 |
+| GitHub 链接 | 研究 repo，只计划写一张项目卡。 |
+| `去 GitHub 找 LangGraph 这个项目` | 走 GitHub 搜索，定位 repo 后生成项目预览。 |
+| 普通网页 URL | 抽取网页正文，生成知识预览。 |
+| 开发想法 / 产品点子 | 先正常聊天澄清；明确“保存/入库/记下来”后写入想法。 |
+| `状态` | 返回当前待确认/任务状态。 |
+| `取消` | 取消最近一个待确认预览。 |
+
+#### 3.3 公网回调模式
 
 公网回调是飞书开放平台把事件 HTTP POST 到你的服务器。它需要飞书能访问到你的地址。
 
@@ -322,7 +453,16 @@ FEISHU_VERIFICATION_TOKEN=
 - 飞书事件订阅 URL 填 `/connectors/feishu/message`。
 - 飞书卡片按钮回调 URL 填 `/connectors/feishu/card`。
 
-#### 3.3 两种模式怎么选
+公网回调能处理这些业务：
+
+| 回调地址 | 用途 |
+|---|---|
+| `/connectors/feishu/message` | 飞书事件订阅，把用户消息 HTTP POST 到 ObsidianLink。 |
+| `/connectors/feishu/card` | 飞书卡片按钮点击回调，比如“入库知识/生成应用想法/入库并联想”。 |
+
+注意：如果你已经启用了长连接接收消息，通常不需要再配置 `/connectors/feishu/message`，否则同一条消息可能被两条通道重复处理。卡片按钮仍然可以单独配置 `/connectors/feishu/card`。
+
+#### 3.4 两种模式怎么选
 
 ```text
 只想本机收飞书消息       -> 用长连接，不用公网回调
@@ -342,6 +482,37 @@ CONNECTOR_PUBLIC_BASE_URL=https://your-public-domain
 - 长连接接收消息不依赖 `CONNECTOR_PUBLIC_BASE_URL`。
 - 卡片按钮点击是平台回调，必须能访问 `CONNECTOR_PUBLIC_BASE_URL`。
 - 如果卡片按钮点了没反应，优先检查 `/connectors/feishu/card` 的公网可访问性和 verification token。
+- 同一时间不要同时让长连接和事件回调都接收普通消息，除非你确认消息幂等和去重配置没有问题。
+
+#### 3.5 飞书预览卡业务
+
+当输入被判断为“来源摄入”时，飞书会先收到一条“已收到/处理中”的反馈；处理完成后会收到预览卡。
+
+项目类预览按钮：
+
+| 按钮/文字回复 | 行为 |
+|---|---|
+| `只入库` | 只写一张项目卡到 Obsidian。 |
+| `只联想` | 不写文件，只把应用想法发回飞书。 |
+| `入库并联想` | 写主项目卡；联想只发回飞书，不额外写想法文件。 |
+
+知识类预览按钮：
+
+| 按钮/文字回复 | 行为 |
+|---|---|
+| `入库知识` | 只写一张主知识卡。 |
+| `生成应用想法` | 不写文件，只把可组合方向发回飞书。 |
+| `入库并联想` | 写主知识卡；联想只发回飞书。 |
+
+如果 `FEISHU_CARD_CALLBACK_ENABLED=false`，预览卡不会显示按钮，而是提示你直接在飞书里回复上面的文字。
+
+如果 `FEISHU_CARD_CALLBACK_ENABLED=true`，必须保证：
+
+```text
+CONNECTOR_PUBLIC_BASE_URL + /connectors/feishu/card
+```
+
+可以被飞书开放平台访问。
 
 ### 4. QQ 开放平台 Bot SDK
 
