@@ -27,7 +27,7 @@ describe("message intent router", () => {
       kind: "source_ingest",
       sourceHint: "github"
     });
-    expect(classifyMessageIntent("已经在聊想法了，但现在帮我去 GitHub 找一下 openclaw-qqbot", { hasOpenIdeaSession: true })).toMatchObject({
+    expect(classifyMessageIntent("已经在聊想法了，但现在帮我去 GitHub 找一下 CopilotKit", { hasOpenIdeaSession: true })).toMatchObject({
       kind: "source_ingest",
       sourceHint: "github"
     });

@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { getConnectorAdapter } from "../src/connectors/adapters/index.js";
 import { ConnectorRuntimeConfig } from "../src/connectors/adapters/types.js";
 import { normalizeFeishuLongConnectionEvent } from "../src/connectors/feishuLongConnection.js";
-import { normalizeQQSdkEvent } from "../src/connectors/qqBotSdk.js";
 import { normalizeConnectorMessage } from "../src/connectors.js";
 import { createApp } from "../src/server.js";
 
@@ -44,34 +43,6 @@ function encryptFeishuPayload(payload: unknown, encryptKey: string) {
 }
 
 describe("connector adapters", () => {
-  it("normalizes QQ Bot SDK websocket events", () => {
-    expect(
-      normalizeQQSdkEvent({
-        eventType: "MESSAGE_CREATE",
-        eventId: "evt-qq",
-        msg: {
-          id: "msg-qq",
-          content: "<@!123456> 保存这个抖音链接 https://v.douyin.com/demo",
-          author: { id: "qq-user" }
-        }
-      })
-    ).toMatchObject({
-      text: "保存这个抖音链接 https://v.douyin.com/demo",
-      source: "qq",
-      senderId: "qq-user",
-      messageId: "msg-qq",
-      autoWrite: false
-    });
-  });
-
-  it("reports QQ Bot SDK required config fields", () => {
-    const adapter = getConnectorAdapter("qq");
-    const status = adapter.getSetupStatus(config({ appId: "app" }));
-    expect(adapter.adapter).toBe("qq-bot-sdk");
-    expect(status.configured).toBe(false);
-    expect(status.missing).toEqual(["token"]);
-  });
-
   it("handles Feishu URL verification challenge", async () => {
     const adapter = getConnectorAdapter("feishu");
     const result = await adapter.handleChallenge(
@@ -199,7 +170,7 @@ describe("connector adapters", () => {
   });
 
   it("exposes a unified sendReply interface on every adapter", () => {
-    for (const source of ["qq", "feishu", "wechat", "wecom", "dingtalk", "telegram", "web", "api"] as const) {
+    for (const source of ["feishu", "wechat", "wecom", "dingtalk", "telegram", "web", "api"] as const) {
       expect(typeof getConnectorAdapter(source).sendReply).toBe("function");
     }
   });

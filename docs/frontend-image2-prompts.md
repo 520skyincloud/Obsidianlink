@@ -4,7 +4,7 @@
 
 产品：ObsidianLink，本机知识摄入智能体控制台。
 
-目标用户：个人开发者/知识工作者，用飞书、QQ、抖音链接、GitHub 链接、自然语言想法投喂本地智能体，最终只把确认后的主知识/主项目写入 Obsidian；联想只在飞书/页面展示，不自动写入 Obsidian。
+目标用户：个人开发者/知识工作者，用飞书、Telegram、通用 Webhook、抖音链接、GitHub 链接、自然语言想法投喂本地智能体，最终只把确认后的主知识/主项目写入 Obsidian；联想只在飞书/页面展示，不自动写入 Obsidian。
 
 视觉方向：中文本地工具，不做营销官网。要像“本机 Agent 控制塔”：安静、清晰、可信、信息密度适中。避免一坨卡片堆砌，避免大面积渐变和花哨装饰。桌面优先，移动端能用。圆角 8px 以内。颜色用温和的纸白、墨黑、青绿色状态色、琥珀警告色、蓝色动作色。不要紫蓝渐变主题。
 
@@ -64,7 +64,7 @@ Visible copy must be Chinese and include:
 - 指标：今日消息、待确认、失败任务、已写入
 - 模块：最近任务、等待确认、当前智能体步骤、最近写入文件
 Functional details:
-- 快速投喂框有来源下拉：网页、飞书、QQ、API
+- 快速投喂框有来源下拉：网页、飞书、Telegram、API
 - 最近任务以列表/表格展示 jobId、来源、状态、当前节点、时间
 - 等待确认显示 previewId、标题、写入计划和三个操作：确认、取消、查看 Markdown
 - 当前智能体步骤用横向 pipeline：输入解析、抖音解析、抽帧 OCR、GitHub 研究、知识抽取、联想生成、预览生成、等待确认
@@ -78,7 +78,7 @@ Visual constraints:
 
 Use case: ui-mockup
 Asset type: desktop web app screen, 1440x960
-Primary request: 设计 ObsidianLink 智能体对话页，中文界面。它不是普通聊天软件，而是用于测试飞书/QQ 同款智能体逻辑的本地调试页。主视觉是左侧对话流，右侧实时预览与处理状态。
+Primary request: 设计 ObsidianLink 智能体对话页，中文界面。它不是普通聊天软件，而是用于测试飞书、网页和 API 同款智能体逻辑的本地调试页。主视觉是左侧对话流，右侧实时预览与处理状态。
 Visible copy:
 - 页面标题：智能体对话
 - 输入框 placeholder：像发给飞书一样，把抖音链接、GitHub 链接或想法发给我
@@ -103,7 +103,6 @@ Use case: ui-mockup
 Asset type: desktop web app screen, 1440x960
 Primary request: 设计 ObsidianLink 接入通道页，中文界面，真实平台 SDK/协议配置。左侧是平台列表，右侧是选中平台的配置表单和测试区。
 Required platform list:
-- QQ 开放平台 Bot SDK
 - 飞书
 - 微信公众号/服务号
 - 企业微信
@@ -125,14 +124,12 @@ Buttons:
 - 保存配置
 - 测试连接
 - 发送测试消息
-- 启动长连接/SDK
-- 停止长连接/SDK
+- 启动长连接
+- 停止长连接
 Feishu selected state details:
 - 展示 FEISHU_APP_ID、FEISHU_APP_SECRET、FEISHU_VERIFICATION_TOKEN、FEISHU_ENCRYPT_KEY、FEISHU_LONG_CONNECTION_ENABLED
 - 展示“飞书长连接已连接，正在接收事件”
 - 展示“卡片点击回调需要 card.action.trigger 和消息卡片请求地址”
-QQ selected state details:
-- 展示 QQ_BOT_APP_ID、QQ_BOT_TOKEN、QQ_BOT_SANDBOX、QQ_BOT_SDK_AUTOSTART、QQ_BOT_FORWARD_SECRET
 Visual constraints:
 - 这页要像专业开发者控制台，不要像表单堆砌
 - 平台列表每项有状态灯、模式标签、配置进度

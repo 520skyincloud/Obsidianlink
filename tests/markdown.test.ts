@@ -6,13 +6,13 @@ describe("buildNotes", () => {
   it("builds only one detailed project note when a GitHub repo is identified", () => {
     const preview: StoredPreview = {
       previewId: "pv_test",
-      summary: "一个 QQ Bot 接入项目。",
+      summary: "一个 LangGraph 智能体编排项目。",
       detectedProjects: [
         {
-          name: "openclaw-qqbot",
-          githubRepo: "tencent-connect/openclaw-qqbot",
-          githubUrl: "https://github.com/tencent-connect/openclaw-qqbot",
-          description: "QQ Bot channel plugin",
+          name: "langgraph",
+          githubRepo: "langchain-ai/langgraph",
+          githubUrl: "https://github.com/langchain-ai/langgraph",
+          description: "Stateful agent orchestration",
           confidence: 0.9,
           evidence: ["github url"]
         }
@@ -20,14 +20,14 @@ describe("buildNotes", () => {
       notesToWrite: [],
       knowledge: [
         {
-          title: "QQ Bot 作为知识入口",
+          title: "LangGraph 状态化智能体工作流",
           category: "自动化流程与效率工具",
           contentKind: "method",
           domains: ["自动化", "知识管理"],
           entities: ["Obsidian", "Bot"],
           summary: "把聊天入口变成个人知识库摄入管道。",
           keyPoints: ["消息入口降低记录摩擦"],
-          sourceInsights: ["QQ 可以成为随手投喂入口"],
+          sourceInsights: ["LangGraph 适合作为本地智能体流程编排层"],
           relatedConcepts: ["Obsidian", "Bot"],
           applicationIdeas: ["用确认流程避免误写入"],
           nextActions: ["连接 preview/confirm"]
@@ -35,11 +35,11 @@ describe("buildNotes", () => {
       ],
       ideas: [
         {
-          title: "QQ 灵感收集助手",
+          title: "知识入口智能体编排台",
           ideaKind: "automation",
           combinedWith: ["Obsidian"],
           productConcept: "把聊天想法沉淀成知识卡片。",
-          softwarePossibility: "QQ Bot + 本地 API。",
+          softwarePossibility: "飞书 + 本地 API + LangGraph。",
           hardwarePossibility: "可接入快捷键设备。",
           userScenario: "刷到项目后发给 Bot。",
           minimalExperiment: "先做确认写入。",
@@ -49,14 +49,14 @@ describe("buildNotes", () => {
       warnings: [],
       request: {
         text: "保存这个项目",
-        source: "qq",
+        source: "web",
         senderId: "u1",
         messageId: "m1"
       },
       parsedInput: {
         rawText: "保存这个项目",
-        urls: ["https://github.com/tencent-connect/openclaw-qqbot"],
-        githubRepos: ["tencent-connect/openclaw-qqbot"],
+        urls: ["https://github.com/langchain-ai/langgraph"],
+        githubRepos: ["langchain-ai/langgraph"],
         douyinUrls: [],
         candidateQuery: "保存这个项目"
       },
@@ -71,16 +71,16 @@ describe("buildNotes", () => {
       ocr: [],
       githubRepos: [
         {
-          fullName: "tencent-connect/openclaw-qqbot",
-          htmlUrl: "https://github.com/tencent-connect/openclaw-qqbot",
-          description: "QQ Bot channel plugin",
+          fullName: "langchain-ai/langgraph",
+          htmlUrl: "https://github.com/langchain-ai/langgraph",
+          description: "Stateful agent orchestration",
           stars: 1500,
-          topics: ["qqbot"],
+          topics: ["agents", "workflow"],
           license: "MIT",
           updatedAt: "2026-01-01T00:00:00Z",
           language: "TypeScript",
           readme:
-            "# README\n\n![logo](./images/logo.png)\n[![GitHub Code License](https://img.shields.io/github/license/tencent-connect/openclaw-qqbot)](LICENSE)\n中文 | [English](./README_en.md)\n\n## Quick start\nnpm install\n"
+            "# README\n\n![logo](./images/logo.png)\n[![GitHub Code License](https://img.shields.io/github/license/langchain-ai/langgraph)](LICENSE)\n中文 | [English](./README_en.md)\n\n## Quick start\nnpm install\n"
         }
       ],
       createdAt: "2026-05-10T00:00:00.000Z",
@@ -90,10 +90,10 @@ describe("buildNotes", () => {
     const notes = buildNotes(preview);
 
     expect(notes.map((note) => note.type)).toEqual(["project"]);
-    expect(notes[0].title).toBe("openclaw-qqbot - QQ Bot 作为知识入口");
-    expect(notes[0].relativePath).toBe("1_项目/0_开源项目/tencent-connect-openclaw-qqbot.md");
+    expect(notes[0].title).toBe("langgraph - 状态化智能体工作流");
+    expect(notes[0].relativePath).toBe("1_项目/0_开源项目/langchain-ai-langgraph.md");
     expect(notes[0].content).toContain("## 与我的知识库可能怎么联动");
-    expect(notes[0].content).toContain("QQ 灵感收集助手");
+    expect(notes[0].content).toContain("知识入口智能体编排台");
     expect(notes[0].content).toContain("source_authors:");
     expect(notes[0].content).toContain("## GitHub 信息");
     expect(notes[0].content).toContain("Quick start");

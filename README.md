@@ -30,7 +30,7 @@ http://127.0.0.1:38721/
 ## 适合谁
 
 - 经常刷到抖音技术视频、图文教程、GitHub 项目，但转头就忘的人。
-- 想把 QQ、飞书、Telegram、微信等聊天入口变成个人知识库入口的人。
+- 想把飞书、Telegram、微信、通用 Webhook 等聊天入口变成个人知识库入口的人。
 - 想让模型先整理、分类、联想，再由自己确认写入 Obsidian 的人。
 - 想用 LangGraph.js 搭一个本地智能体任务系统的人。
 
@@ -123,7 +123,7 @@ Agent-Reach - 给 AI Agent 一键装上互联网能力
 8. npm run build
 9. npm run service:start
 10. 打开 http://127.0.0.1:38721/ 做配置测试
-11. 再接飞书 / QQ / 其他聊天入口
+11. 再接飞书 / Telegram / 其他聊天入口
 ```
 
 最小可用配置只需要：
@@ -251,16 +251,6 @@ npm run dev
 | `FEISHU_ENCRYPT_KEY` | 可选 | `xxx` | 如果飞书开启事件加密，需要填写。不开加密可以空。 |
 | `FEISHU_LONG_CONNECTION_ENABLED` | 长连接必填 | `true` | 是否启用飞书长连接。长连接不需要公网 URL。 |
 | `FEISHU_CARD_CALLBACK_ENABLED` | 卡片按钮必填 | `true` | 是否在飞书预览卡里显示可点击按钮。按钮回调需要公网地址。 |
-
-### QQ Bot 参数
-
-| 参数 | 是否必填 | 示例 | 含义 |
-|---|---:|---|---|
-| `QQ_BOT_APP_ID` | QQ 必填 | `123456` | QQ 开放平台机器人 App ID。 |
-| `QQ_BOT_TOKEN` | QQ 必填 | `xxx` | QQ 开放平台机器人 Token。 |
-| `QQ_BOT_SANDBOX` | 否 | `false` | 是否使用 QQ 沙箱环境。 |
-| `QQ_BOT_SDK_AUTOSTART` | 否 | `true` | 服务启动时是否自动启动 QQ Bot SDK session。 |
-| `QQ_BOT_FORWARD_SECRET` | 可选 | `xxx` | HTTP 转发模式的自定义校验密钥。 |
 
 安全约定：
 
@@ -514,20 +504,7 @@ CONNECTOR_PUBLIC_BASE_URL + /connectors/feishu/card
 
 可以被飞书开放平台访问。
 
-### 4. QQ 开放平台 Bot SDK
-
-使用 QQ 开放平台 Bot SDK。
-
-```bash
-QQ_BOT_APP_ID=
-QQ_BOT_TOKEN=
-QQ_BOT_SANDBOX=false
-QQ_BOT_SDK_AUTOSTART=true
-```
-
-QQ SDK 只负责收发消息，知识理解和写入都走 ObsidianLink 的统一智能体链路。
-
-### 5. 其他平台
+### 4. 其他平台
 
 项目里保留了统一 Adapter 结构，便于接入：
 
@@ -714,7 +691,7 @@ curl -X POST http://127.0.0.1:38721/api/vault/check-broken-links \
 ```text
 src/agent/previewGraph.ts        LangGraph 摄入预览图
 src/clients/                     模型、GitHub、抖音、OCR、网页工具
-src/connectors/                  飞书、QQ、Webhook 等入口
+src/connectors/                  飞书、Telegram、Webhook 等入口
 src/database/                    SQLite migrations 和 repositories
 src/obsidian/                    Markdown 生成与 Vault 写入
 src/public/                      本地控制台前端

@@ -158,7 +158,7 @@ describe("Feishu chat flow", () => {
       await tick();
       expect(written).toHaveLength(0);
 
-      const second = await postFeishuMessage(baseUrl, `om_idea_b_${suffix}`, "第一版先做飞书和 QQ，别保存，先聊清楚");
+      const second = await postFeishuMessage(baseUrl, `om_idea_b_${suffix}`, "第一版先做飞书和网页 API，别保存，先聊清楚");
       expect(second.status).toBe(200);
       expect((await second.json()).action).toBe("chat_reply");
       expect(written).toHaveLength(0);
@@ -311,7 +311,7 @@ function makePreview(previewId: string): IngestPreview {
       {
         title: "多入口智能体编排台",
         combinedWith: ["ObsidianLink"],
-        productConcept: "把飞书、QQ、网页入口统一编排为本地知识智能体。",
+        productConcept: "把飞书、Telegram、网页入口统一编排为本地知识智能体。",
         softwarePossibility: "LangGraph 节点化处理消息。",
         hardwarePossibility: "可部署在本地小主机。",
         userScenario: "随手转发技术信息，稍后统一入库。",

@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import { Request } from "express";
 import { getFeishuLongConnectionStatus, sendFeishuReply } from "../feishuLongConnection.js";
-import { getQQBotSdkRuntimeStatus, normalizeQQSdkEvent, sendQQReply } from "../qqBotSdk.js";
 import { AgentMessageResponse, SourceKind } from "../../types.js";
 import {
   ChallengeResult,
@@ -193,76 +192,6 @@ function publicUrlNote(config: ConnectorRuntimeConfig, platform: string): string
     ? `${platform} 可使用当前 HTTPS 公网回调地址。`
     : `${platform} 真实平台回调需要 HTTPS 公网地址；当前本机地址只能做本地模拟或内网穿透后再测试。`;
 }
-
-const qqFields = [
-  field("appId", "QQ_BOT_APP_ID", "QQ 开放平台 Bot AppID", { required: true, placeholder: "开放平台机器人 AppID" }),
-  field("token", "QQ_BOT_TOKEN", "QQ Bot Token", { required: true, secret: true, placeholder: "留空则不修改" }),
-  field("sandbox", "QQ_BOT_SANDBOX", "沙箱模式", { placeholder: "true 或 false" }),
-  field("autoStart", "QQ_BOT_SDK_AUTOSTART", "本机启动 SDK session", { placeholder: "true 开启；默认 false" }),
-  field("secret", "QQ_BOT_FORWARD_SECRET", "HTTP 转发密钥", { secret: true, placeholder: "可选，用于 x-obsidianlink-secret" })
-];
-
-const qqBotSdkAdapter: ConnectorAdapter = {
-  source: "qq",
-  adapter: "qq-bot-sdk",
-  label: "QQ 开放平台 Bot SDK",
-  endpoint: "/connectors/qq/message",
-  description: "QQ 开放平台官方 Bot SDK 入口：支持 qq-guild-bot websocket session，也支持 SDK 事件转发到本机 HTTP。",
-  mode: "sdk",
-  getConfigSchema: () => qqFields,
-  getSetupStatus: (config) => {
-    const runtime = getQQBotSdkRuntimeStatus();
-    return makeStatus(
-      qqFields,
-      config,
-      ["qq-guild-bot 官方 SDK websocket", "频道消息/私信/@消息解析", "OpenAPI me() 连接测试", "可选 HTTP 转发密钥"],
-      [
-        runtime.note,
-        runtime.lastEventAt ? `最近 SDK 事件：${runtime.lastEventAt}` : "",
-        runtime.lastReplyAt ? `最近 SDK 回复：${runtime.lastReplyAt}` : "",
-        runtime.lastError ? `SDK 错误：${runtime.lastError}` : ""
-      ].filter(Boolean)
-    );
-  },
-  handleChallenge: async () => okChallenge,
-  verifyRequest: async (req, config) => {
-    requireEnabled(config, "QQ Bot SDK");
-    const secret = config.values.secret;
-    if (secret && req.header("x-obsidianlink-secret") !== secret) throw new Error("QQ Bot SDK HTTP 转发密钥校验失败");
-  },
-  normalizeMessage: async (req) => {
-    const body = requestBody(req);
-    try {
-      return normalizeQQSdkEvent(body);
-    } catch {
-      return simpleTextMessage("qq", body);
-    }
-  },
-  sendReply: async (target, reply) => {
-    await sendQQReply(targetRaw(target), reply.text);
-    return { ok: true, message: "QQ Bot SDK 回复已提交；若事件缺少频道/私信上下文则会自动跳过。" };
-  },
-  sendTestMessage: async (config) => {
-    if (!config.enabled) return { ok: false, message: "QQ Bot SDK 入口已停用。" };
-    if (!config.values.appId || !config.values.token) return { ok: false, message: "QQ Bot SDK 缺少 AppID 或 Token。" };
-    try {
-      const sdk = (await import("qq-guild-bot")) as {
-        createOpenAPI: (config: { appID: string; token: string; sandbox?: boolean }) => {
-          meApi: { me: () => Promise<{ data?: { id?: string; username?: string } }> };
-        };
-      };
-      const api = sdk.createOpenAPI({
-        appID: config.values.appId,
-        token: config.values.token,
-        sandbox: config.values.sandbox === "true"
-      });
-      const me = await api.meApi.me();
-      return { ok: true, message: `QQ Bot SDK OpenAPI 可用：${me.data?.username ?? me.data?.id ?? "已连接"}` };
-    } catch (error) {
-      return { ok: false, message: `QQ Bot SDK OpenAPI 测试失败：${error instanceof Error ? error.message : String(error)}` };
-    }
-  }
-};
 
 const feishuFields = [
   field("appId", "FEISHU_APP_ID", "App ID", { required: true, placeholder: "cli_xxx" }),
@@ -615,7 +544,6 @@ const apiAdapter: ConnectorAdapter = {
 };
 
 export const connectorAdapters: ConnectorAdapter[] = [
-  qqBotSdkAdapter,
   feishuAdapter,
   wechatAdapter,
   wecomAdapter,

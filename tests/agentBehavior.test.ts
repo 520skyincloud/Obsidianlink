@@ -5,7 +5,7 @@ import { parseInput } from "../src/inputParser.js";
 
 describe("agent behavior assumptions", () => {
   it("plain knowledge text does not contain github intent by default", () => {
-    const parsed = parseInput("这个视频讲如何把刷到的技术灵感扔给QQ机器人，再自动分类到Obsidian。");
+    const parsed = parseInput("这个视频讲如何把刷到的技术灵感扔给飞书机器人，再自动分类到Obsidian。");
 
     expect(parsed.githubRepos).toEqual([]);
     expect(parsed.douyinUrls).toEqual([]);
@@ -13,7 +13,7 @@ describe("agent behavior assumptions", () => {
 
   it("does not trigger broad GitHub search from generic agent workflow wording", () => {
     const parsed = parseInput(
-      "今天刷到一个视频讲如何把短视频里的知识点自动整理成Obsidian笔记，最好还能联想到我的QQ机器人入口、GitHub项目研究和本地知识库分类。"
+      "今天刷到一个视频讲如何把短视频里的知识点自动整理成Obsidian笔记，最好还能联想到我的飞书机器人入口、GitHub项目研究和本地知识库分类。"
     );
 
     expect(shouldSearchGitHub(parsed.rawText, parsed.candidateQuery)).toBe(false);
@@ -64,7 +64,7 @@ describe("agent behavior assumptions", () => {
         }),
         findPendingPreview: () => ({ previewId: "pv_pending", summary: "pending preview" })
       },
-      { text: "确认", source: "qq", senderId: "u1", messageId: "m1", autoWrite: false }
+      { text: "确认", source: "web", senderId: "u1", messageId: "m1", autoWrite: false }
     );
 
     expect(response.action).toBe("confirmed");

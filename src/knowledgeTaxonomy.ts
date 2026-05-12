@@ -191,7 +191,7 @@ export const domainRules: DomainRule[] = [
   {
     name: "自动化",
     description: "Bot、工作流、脚本、快捷入口、RPA、低摩擦采集和个人操作系统。",
-    keywords: /自动化|工作流|效率|Bot|机器人|飞书|微信|QQ|Telegram|Webhook|脚本|快捷|RPA|同步|提醒|复盘|番茄钟/i
+    keywords: /自动化|工作流|效率|Bot|机器人|飞书|微信|Telegram|Webhook|脚本|快捷|RPA|同步|提醒|复盘|番茄钟/i
   },
   {
     name: "产品体验",
@@ -282,7 +282,7 @@ export function sourceTypeFor(source: SourceKind, hasDouyin = false, hasGithub =
 }
 
 export function normalizeSourceType(value: string | undefined): SourceKind | "douyin" | "github" | "manual" | undefined {
-  const allowed = new Set(["qq", "feishu", "wechat", "wecom", "dingtalk", "telegram", "cli", "web", "api", "douyin", "github", "manual"]);
+  const allowed = new Set(["feishu", "wechat", "wecom", "dingtalk", "telegram", "cli", "web", "api", "douyin", "github", "manual"]);
   const clean = value?.trim();
   return clean && allowed.has(clean) ? (clean as SourceKind | "douyin" | "github" | "manual") : undefined;
 }

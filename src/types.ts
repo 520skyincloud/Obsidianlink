@@ -1,4 +1,4 @@
-export type SourceKind = "qq" | "feishu" | "wechat" | "wecom" | "dingtalk" | "telegram" | "cli" | "web" | "api";
+export type SourceKind = "feishu" | "wechat" | "wecom" | "dingtalk" | "telegram" | "cli" | "web" | "api";
 
 export type ConfirmDecision = "confirm" | "cancel";
 export type ContentKind = "concept" | "method" | "tutorial" | "opinion" | "tool" | "pitfall" | "case" | "unknown";

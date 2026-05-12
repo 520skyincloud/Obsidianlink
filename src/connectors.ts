@@ -2,7 +2,7 @@ import { z } from "zod";
 import { connectorAdapters, normalizeWithAdapter } from "./connectors/adapters/index.js";
 import { AgentMessageRequest, SourceKind } from "./types.js";
 
-export const sourceKinds = ["qq", "feishu", "wechat", "wecom", "dingtalk", "telegram", "cli", "web", "api"] as const;
+export const sourceKinds = ["feishu", "wechat", "wecom", "dingtalk", "telegram", "cli", "web", "api"] as const;
 
 export const sourceKindSchema = z.enum(sourceKinds);
 

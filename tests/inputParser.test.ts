@@ -4,11 +4,11 @@ import { parseInput } from "../src/inputParser.js";
 describe("parseInput", () => {
   it("extracts GitHub repos and Douyin URLs", () => {
     const parsed = parseInput(
-      "看看这个 https://v.douyin.com/ZedjlY4D5YQ/ 里面提到 https://github.com/tencent-connect/openclaw-qqbot 很适合接入"
+      "看看这个 https://v.douyin.com/ZedjlY4D5YQ/ 里面提到 https://github.com/langchain-ai/langgraph 很适合接入"
     );
 
     expect(parsed.douyinUrls).toEqual(["https://v.douyin.com/ZedjlY4D5YQ/"]);
-    expect(parsed.githubRepos).toContain("tencent-connect/openclaw-qqbot");
+    expect(parsed.githubRepos).toContain("langchain-ai/langgraph");
     expect(parsed.candidateQuery).toContain("看看这个");
   });
 
@@ -19,9 +19,9 @@ describe("parseInput", () => {
   });
 
   it("does not treat github.com/owner as a shorthand repo", () => {
-    const parsed = parseInput("研究 https://github.com/tencent-connect/openclaw-qqbot");
+    const parsed = parseInput("研究 https://github.com/langchain-ai/langgraph");
 
-    expect(parsed.githubRepos).toEqual(["tencent-connect/openclaw-qqbot"]);
+    expect(parsed.githubRepos).toEqual(["langchain-ai/langgraph"]);
   });
 
   it("does not treat local file paths as GitHub repo shorthands", () => {
@@ -38,7 +38,7 @@ describe("parseInput", () => {
 
   it("cleans natural language GitHub project-name searches into a useful query", () => {
     expect(parseInput("去 GitHub 帮我找到 LangGraph 这个项目").candidateQuery).toBe("LangGraph");
-    expect(parseInput("帮我搜一下 github 上的 openclaw-qqbot 仓库").candidateQuery).toBe("openclaw-qqbot");
+    expect(parseInput("帮我搜一下 github 上的 CopilotKit 仓库").candidateQuery).toBe("CopilotKit");
     expect(parseInput("项目名叫 Agent Reach，去 github 研究一下").candidateQuery).toBe("Agent Reach");
   });
 });

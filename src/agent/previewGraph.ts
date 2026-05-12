@@ -688,7 +688,7 @@ export function shouldSearchGitHub(rawText: string, candidateQuery: string): boo
   const compact = rawText.replace(/\s+/g, " ").trim();
   if (compact.length > 90) return false;
   const projectTokens = compact.match(/\b[A-Za-z][A-Za-z0-9_.-]{2,}\b/g) ?? [];
-  const genericTokens = new Set(["github", "repo", "repository", "openai", "api", "bot", "qq", "qqbot", "obsidian", "douyin"]);
+  const genericTokens = new Set(["github", "repo", "repository", "openai", "api", "bot", "obsidian", "douyin"]);
   return projectTokens.some((token) => !genericTokens.has(token.toLowerCase()));
 }
 

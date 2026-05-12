@@ -14,7 +14,6 @@ import {
 } from "./connectors/adapters/index.js";
 import { ConnectorAdapter, ConnectorRuntimeConfig } from "./connectors/adapters/types.js";
 import { handleFeishuCardCallback, sendFeishuProcessingAck, startFeishuLongConnection, stopFeishuLongConnection } from "./connectors/feishuLongConnection.js";
-import { startQQBotSdkAgent, stopQQBotSdkAgent } from "./connectors/qqBotSdk.js";
 import { databaseStatus } from "./database/db.js";
 import { repositories } from "./database/repositories.js";
 import { updateEnvFile } from "./envFile.js";
@@ -27,14 +26,14 @@ import { ObsidianVault } from "./obsidian/vault.js";
 
 const previewSchema = z.object({
   text: z.string().min(1),
-  source: sourceKindSchema.default("qq"),
+  source: sourceKindSchema.default("web"),
   senderId: z.string().min(1),
   messageId: z.string().min(1)
 });
 
 const agentMessageSchema = z.object({
   text: z.string().min(1),
-  source: sourceKindSchema.default("qq"),
+  source: sourceKindSchema.default("web"),
   senderId: z.string().min(1),
   messageId: z.string().min(1),
   autoWrite: z.boolean().optional().default(true)
@@ -249,9 +248,6 @@ export function createApp(service = new IngestService(), vault = new ObsidianVau
       if (source === "feishu" && process.env.FEISHU_LONG_CONNECTION_ENABLED === "true") {
         void startFeishuLongConnection(service);
       }
-      if (source === "qq" && process.env.QQ_BOT_SDK_AUTOSTART === "true") {
-        void startQQBotSdkAgent(service);
-      }
       res.json({ ok: true, connector: connectorView(connector) });
     } catch (error) {
       next(error);
@@ -370,7 +366,6 @@ export function createApp(service = new IngestService(), vault = new ObsidianVau
     try {
       const source = sourceKindSchema.parse(req.params.connector);
       if (source === "feishu") await startFeishuLongConnection(service);
-      else if (source === "qq") await startQQBotSdkAgent(service);
       else res.json({ ok: false, error: "这个接入没有本机长连接/SDK session 可启动；请使用平台 webhook 回调。" });
       if (res.headersSent) return;
       res.json({ ok: true, connector: connectorView(getConnectorAdapter(source)) });
@@ -383,7 +378,6 @@ export function createApp(service = new IngestService(), vault = new ObsidianVau
     try {
       const source = sourceKindSchema.parse(req.params.connector);
       if (source === "feishu") stopFeishuLongConnection();
-      else if (source === "qq") stopQQBotSdkAgent();
       else {
         res.json({ ok: false, error: "这个接入没有本机长连接/SDK session 可停止。" });
         return;
@@ -1272,8 +1266,8 @@ function connectorView(connector: ConnectorAdapter) {
 }
 
 function connectorControls(connector: ConnectorAdapter) {
-  const hasLocalSession = connector.source === "feishu" || connector.source === "qq";
-  const canAsyncReply = connector.source === "feishu" || connector.source === "qq" || connector.source === "telegram";
+  const hasLocalSession = connector.source === "feishu";
+  const canAsyncReply = connector.source === "feishu" || connector.source === "telegram";
   return {
     start: hasLocalSession,
     stop: hasLocalSession,
@@ -1341,7 +1335,6 @@ if (process.env.NODE_ENV !== "test") {
   const service = new IngestService();
   createApp(service).listen(config.PORT, "127.0.0.1", () => {
     console.log(`ObsidianLink listening on http://127.0.0.1:${config.PORT}`);
-    void startQQBotSdkAgent(service);
     void startFeishuLongConnection(service);
   });
 }

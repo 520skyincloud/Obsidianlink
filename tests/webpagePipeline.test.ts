@@ -25,7 +25,7 @@ describe("webpage extraction pipeline", () => {
         <body>
           <h1>多渠道入口到 LangGraph 智能体</h1>
           <script>window.noise = true</script>
-          <article>飞书长连接、QQ Bot SDK 和 Telegram webhook 都应该归一化成同一个 AgentMessageRequest。</article>
+          <article>飞书长连接、Telegram webhook 和通用 API 都应该归一化成同一个 AgentMessageRequest。</article>
         </body>
       </html>
     `);
@@ -43,7 +43,7 @@ describe("webpage extraction pipeline", () => {
     const url = await serveHtml(`
       <html>
         <head><title>多渠道消息入口架构</title></head>
-        <body><article>真实 SDK 接入要支持飞书长连接、QQ Bot SDK、签名校验、消息归一化和异步回发。</article></body>
+        <body><article>真实平台接入要支持飞书长连接、Telegram webhook、签名校验、消息归一化和异步回发。</article></body>
       </html>
     `);
     let webpageTextSeen = "";
@@ -74,7 +74,7 @@ describe("webpage extraction pipeline", () => {
                 category: "智能体架构",
                 contentKind: "method",
                 domains: ["AI智能体", "自动化", "知识管理"],
-                entities: ["飞书长连接", "QQ Bot SDK"],
+                entities: ["飞书长连接", "Telegram webhook"],
                 summary: "统一消息入口、异步任务和回发通道。",
                 keyPoints: ["平台 SDK 只负责协议", "智能体负责理解和写库"],
                 sourceInsights: ["网页正文来自 webpage_extractor"],
@@ -87,7 +87,7 @@ describe("webpage extraction pipeline", () => {
               {
                 title: "多平台知识入口控制台",
                 ideaKind: "automation",
-                combinedWith: ["飞书", "QQ"],
+                combinedWith: ["飞书", "Telegram"],
                 productConcept: "把社交消息变成可确认的知识库任务。",
                 softwarePossibility: "Connector Adapter -> Job Queue -> LangGraph -> Vault Commit。",
                 hardwarePossibility: "可接快捷键或语音入口。",
@@ -118,7 +118,7 @@ describe("webpage extraction pipeline", () => {
       } as never
     });
 
-    expect(webpageTextSeen).toContain("真实 SDK 接入");
+    expect(webpageTextSeen).toContain("真实平台接入");
     expect(preview.webpages?.[0]?.title).toBe("多渠道消息入口架构");
     expect(preview.knowledge[0].title).toBe("多渠道消息入口到智能体");
     expect(toolCalls.some((call) => call.nodeName === "webpage_pipeline" && call.toolName === "webpage_extractor" && call.status === "success")).toBe(true);

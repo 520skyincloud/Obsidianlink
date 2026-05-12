@@ -361,7 +361,7 @@ function renderChat() {
   const messages = state.chatLog.length ? state.chatLog.map((item) => `
     <div class="chat-bubble ${item.role}">${escapeHtml(item.text)}</div>
   `).join("") : `
-    <div class="chat-bubble agent">这里模拟飞书/QQ 的自然对话入口。普通寒暄不会入库，明确链接或知识输入才会进入预览。</div>
+    <div class="chat-bubble agent">这里模拟飞书、网页和 API 的自然对话入口。普通寒暄不会入库，明确链接或知识输入才会进入预览。</div>
   `;
 
   return `
@@ -535,7 +535,7 @@ function quickIngestCard(title, chatMode = false) {
           来源
           ${sourceButton("web", "网页", globeIcon())}
           ${sourceButton("feishu", "飞书", paperPlaneIcon())}
-          ${sourceButton("qq", "QQ", bellIcon())}
+          ${sourceButton("telegram", "Telegram", bellIcon())}
           ${sourceButton("api", "API", `<span class="icon-api" style="width:24px;height:14px;border-radius:2px;">API</span>`)}
         </div>
         <div class="btn-group">
@@ -1079,7 +1079,6 @@ function miniCard(label, value, colorClass) {
 function sourceIcon(source) {
   const normalized = source || "web";
   if (normalized === "feishu") return `<div class="source-icon icon-feishu">${paperPlaneIcon()}</div>`;
-  if (normalized === "qq") return `<div class="source-icon icon-qq">Q</div>`;
   if (normalized === "api") return `<div class="source-icon icon-api">API</div>`;
   if (normalized === "douyin") return `<div class="source-icon icon-tiktok">d</div>`;
   return `<div class="source-icon icon-web">${globeIcon()}</div>`;
@@ -1088,7 +1087,6 @@ function sourceIcon(source) {
 function sourceName(source) {
   return {
     feishu: "飞书",
-    qq: "QQ",
     api: "API",
     douyin: "抖音",
     web: "网页",
