@@ -262,9 +262,39 @@ curl -X POST http://127.0.0.1:38721/api/previews/pv_xxx/regenerate \
 
 ### 3. 飞书
 
-飞书支持两种入口。
+飞书有两套完全不同的连接方式：长连接模式和公网回调模式。不要把它们混在一起。
 
-Webhook 回调模式：
+#### 3.1 长连接模式
+
+长连接是推荐的本机开发方式。
+
+```bash
+FEISHU_APP_ID=
+FEISHU_APP_SECRET=
+FEISHU_LONG_CONNECTION_ENABLED=true
+```
+
+特点：
+
+- 不需要公网 URL。
+- 不需要把 `127.0.0.1` 暴露给飞书。
+- ObsidianLink 会用飞书 SDK 主动连到飞书开放平台，事件从这条连接推回本机。
+- 适合本机常驻、个人使用、开发调试。
+- 如果只是“飞书发消息给机器人，机器人回复预览/文本”，优先用这个。
+
+启动方式：
+
+```bash
+npm run service:restart
+```
+
+或在控制台“接入通道”里启动飞书长连接。
+
+#### 3.2 公网回调模式
+
+公网回调是飞书开放平台把事件 HTTP POST 到你的服务器。它需要飞书能访问到你的地址。
+
+事件回调：
 
 ```text
 http://your-public-domain/connectors/feishu/message
@@ -284,17 +314,34 @@ FEISHU_APP_SECRET=
 FEISHU_VERIFICATION_TOKEN=
 ```
 
-长连接模式：
+特点：
+
+- 需要公网 URL，生产环境通常要求 HTTPS。
+- 本机 `127.0.0.1` 不能直接填到飞书开放平台。
+- 可以用服务器部署、HTTPS 域名，或内网穿透把本机端口暴露出去。
+- 飞书事件订阅 URL 填 `/connectors/feishu/message`。
+- 飞书卡片按钮回调 URL 填 `/connectors/feishu/card`。
+
+#### 3.3 两种模式怎么选
+
+```text
+只想本机收飞书消息       -> 用长连接，不用公网回调
+需要飞书 HTTP 事件订阅    -> 用公网回调
+需要交互卡片按钮点击回调  -> 卡片回调必须是公网可访问地址
+本机调试卡片按钮          -> 用内网穿透提供公网地址
+```
+
+通用公网地址配置：
 
 ```bash
-FEISHU_LONG_CONNECTION_ENABLED=true
+CONNECTOR_PUBLIC_BASE_URL=https://your-public-domain
 ```
 
 注意：
 
-- 本机 `127.0.0.1` 只能本地调试。
-- 飞书开放平台回调需要公网 URL，通常用 HTTPS 域名或内网穿透。
-- 卡片按钮也需要平台能访问到回调地址。
+- 长连接接收消息不依赖 `CONNECTOR_PUBLIC_BASE_URL`。
+- 卡片按钮点击是平台回调，必须能访问 `CONNECTOR_PUBLIC_BASE_URL`。
+- 如果卡片按钮点了没反应，优先检查 `/connectors/feishu/card` 的公网可访问性和 verification token。
 
 ### 4. QQ 开放平台 Bot SDK
 
@@ -484,8 +531,9 @@ curl -X POST http://127.0.0.1:38721/api/vault/check-broken-links \
 - 抖音失败：配置中心传入真实抖音 URL 测试解析接口。
 - 视频 OCR 失败：确认 `ffmpeg`、`tesseract`，并确认视频可下载。
 - 图文 OCR 失败：确认图片 URL 可访问、tesseract 可用。
-- 飞书收不到消息：确认公网 URL、事件订阅、verification token、卡片回调地址。
-- 卡片按钮点了没反应：确认卡片回调地址不是 `127.0.0.1`，平台必须能访问。
+- 飞书长连接收不到消息：确认 `FEISHU_LONG_CONNECTION_ENABLED=true`、App ID/App Secret 正确，并在接入页查看长连接状态。
+- 飞书公网回调收不到消息：确认公网 URL、事件订阅、verification token。
+- 飞书卡片按钮点了没反应：确认卡片回调地址不是 `127.0.0.1`，平台必须能访问 `/connectors/feishu/card`。
 - 写入失败：确认 Vault 路径存在且可写。
 
 ## 开发说明
