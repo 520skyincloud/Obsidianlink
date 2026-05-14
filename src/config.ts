@@ -16,6 +16,10 @@ const envSchema = z.object({
   OPENAI_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
   GITHUB_TOKEN: z.string().optional().default(""),
   DOUYIN_PARSE_API: z.string().url().default("https://api.bugpk.com/api/douyin?url="),
+  DOUYIN_ALLOW_INSECURE_TLS: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   OCR_FRAME_INTERVAL_SECONDS: z.coerce.number().positive().default(4),
   OCR_MAX_FRAMES: z.coerce.number().int().positive().default(8),
   OCR_MAX_VIDEO_BYTES: z.coerce.number().int().positive().default(80 * 1024 * 1024)

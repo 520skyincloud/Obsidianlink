@@ -1,5 +1,6 @@
 import { config } from "../config.js";
 import { DouyinMetadata } from "../types.js";
+import { Agent } from "undici";
 
 interface DouyinApiResponse {
   code: number;
@@ -58,7 +59,12 @@ interface DouyinLivePhoto {
 export class DouyinClient {
   async parse(url: string): Promise<DouyinMetadata> {
     const endpoint = buildDouyinParseUrl(config.DOUYIN_PARSE_API, url);
-    const response = await fetch(endpoint);
+    let response: Response;
+    try {
+      response = await fetch(endpoint, douyinFetchOptions());
+    } catch (error) {
+      throw new Error(`Douyin parse request failed before response: ${formatFetchError(error)}`);
+    }
     if (!response.ok) {
       throw new Error(`Douyin parse request failed: ${response.status} ${await response.text()}`);
     }
@@ -81,6 +87,24 @@ export class DouyinClient {
       sourceUrl: url
     };
   }
+}
+
+function douyinFetchOptions(): RequestInit {
+  const headers = { "user-agent": "ObsidianLink/0.1" };
+  if (!config.DOUYIN_ALLOW_INSECURE_TLS) return { headers };
+  return {
+    headers,
+    dispatcher: new Agent({ connect: { rejectUnauthorized: false } })
+  } as RequestInit;
+}
+
+function formatFetchError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const cause = error.cause;
+  if (cause && typeof cause === "object" && "code" in cause) {
+    return `${error.message} (${String((cause as { code?: unknown }).code)})`;
+  }
+  return error.message;
 }
 
 function collectImages(images?: string[] | null, livePhotos?: DouyinLivePhoto[] | null, cover?: string | null): string[] {

@@ -237,6 +237,7 @@ npm run dev
 |---|---:|---|---|
 | `GITHUB_TOKEN` | 是 | `ghp_...` | 调 GitHub API 研究仓库，避免公开 API 限流。 |
 | `DOUYIN_PARSE_API` | 是 | `https://api.bugpk.com/api/douyin?url=` | 抖音解析接口。服务会把抖音链接拼到 `url=` 后面。 |
+| `DOUYIN_ALLOW_INSECURE_TLS` | 否 | `false` | 抖音解析站证书链在本机 Node 环境异常时才临时设为 `true`。正常不要开。 |
 | `OCR_FRAME_INTERVAL_SECONDS` | 否 | `4` | 视频 OCR 抽帧间隔。越小越细，越慢。 |
 | `OCR_MAX_FRAMES` | 否 | `8` | 视频最多抽多少帧；图文最多处理多少张图片。 |
 | `OCR_MAX_VIDEO_BYTES` | 否 | `83886080` | 视频下载上限，默认 80MB，避免大文件拖死本机。 |

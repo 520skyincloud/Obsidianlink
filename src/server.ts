@@ -20,7 +20,7 @@ import { updateEnvFile } from "./envFile.js";
 import { IngestService } from "./ingestService.js";
 import { classifyMessageIntent, hasIdeaSaveSignal } from "./intentRouter.js";
 import { fullVaultDirs } from "./knowledgeTaxonomy.js";
-import { buildDouyinParseUrl } from "./clients/douyin.js";
+import { DouyinClient } from "./clients/douyin.js";
 import { OcrClient } from "./clients/ocr.js";
 import { ObsidianVault } from "./obsidian/vault.js";
 
@@ -531,8 +531,8 @@ export function createApp(service = new IngestService(), vault = new ObsidianVau
         res.json({ ok: true, configured: Boolean(config.DOUYIN_PARSE_API), message: "抖音解析 API 已配置；传入 url 可做真实解析测试。" });
         return;
       }
-      const response = await fetch(buildDouyinParseUrl(config.DOUYIN_PARSE_API, url));
-      res.status(response.ok ? 200 : 502).json({ ok: response.ok, status: response.status, result: await response.json().catch(() => ({})) });
+      const result = await new DouyinClient().parse(url);
+      res.json({ ok: true, result });
     } catch (error) {
       res.status(502).json({ ok: false, error: `抖音解析测试失败：${messageOf(error)}` });
     }
