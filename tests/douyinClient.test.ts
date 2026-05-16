@@ -110,4 +110,16 @@ describe("DouyinClient", () => {
       "https://api.bugpk.com/api/douyin?url=https%3A%2F%2Fv.douyin.com%2Fdemo%2F"
     );
   });
+
+  it("surfaces the underlying TLS failure code when parser fetch fails before response", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(
+      Object.assign(new TypeError("fetch failed"), {
+        cause: { code: "UNABLE_TO_GET_ISSUER_CERT_LOCALLY" }
+      })
+    );
+
+    await expect(new DouyinClient().parse("https://v.douyin.com/demo/")).rejects.toThrow(
+      "Douyin parse request failed before response: fetch failed (UNABLE_TO_GET_ISSUER_CERT_LOCALLY)"
+    );
+  });
 });
