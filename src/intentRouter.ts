@@ -100,7 +100,7 @@ function looksLikeConcreteProjectQuery(text: string): boolean {
 
 function hasProjectLookupVerb(text: string): boolean {
   if (/搜索工具|搜索系统|搜索网站|搜索平台|搜索插件|搜索功能/i.test(text)) return false;
-  return /研究一下|研究|看看|看一下|搜索|搜一下|搜|找到|找一下|查一下|查找|定位|帮我找|帮我搜|帮我查/i.test(text);
+  return /研究一下|研究|看看|看一下|搜索|搜一下|搜|找到|找一下|找|查一下|查找|定位|帮我找|帮我搜|帮我查/i.test(text);
 }
 
 function looksLikeProductBuildIdea(text: string): boolean {

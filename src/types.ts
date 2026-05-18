@@ -9,6 +9,20 @@ export type AgentRunStatus = "created" | "running" | "tool_calling" | "preview_g
 export type AgentStepStatus = "running" | "success" | "warning" | "failed" | "skipped";
 export type PreviewStatus = "pending" | "confirmed" | "cancelled" | "expired";
 export type VaultWriteOperation = "create" | "update_frontmatter" | "append_section" | "merge_content";
+export type AgentIntentV2Kind =
+  | "casual_chat"
+  | "source_ingest"
+  | "github_project_lookup"
+  | "idea_chat"
+  | "save_current_idea"
+  | "knowledge_question"
+  | "confirm_preview"
+  | "cancel_preview"
+  | "regenerate_preview"
+  | "help"
+  | "status"
+  | "unknown";
+export type ConversationMode = "idle" | "discussing_idea" | "waiting_preview_decision" | "researching_project" | "answering_knowledge";
 
 export interface PreviewRequest {
   text: string;
@@ -203,6 +217,53 @@ export interface AgentMessageResponse {
   preview?: IngestPreview;
   writtenFiles: string[];
   warnings: string[];
+}
+
+export interface AgentIntentV2 {
+  intent: AgentIntentV2Kind;
+  confidence: number;
+  reason: string;
+  shouldAck: boolean;
+  shouldCreatePreview: boolean;
+  shouldWriteVault: boolean;
+  needsClarification: boolean;
+  sourceHint?: "douyin" | "github" | "web" | "plain";
+  entities: string[];
+}
+
+export interface ConversationSessionRecord {
+  id: string;
+  source: SourceKind;
+  senderId: string;
+  chatId?: string;
+  mode: ConversationMode;
+  topic?: string;
+  pendingPreviewId?: string;
+  ideaDraft?: unknown;
+  lastActiveAt: string;
+  closedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationTurnRecord {
+  id: string;
+  sessionId: string;
+  role: "user" | "assistant" | "system";
+  text: string;
+  intent?: AgentIntentV2;
+  createdAt: string;
+}
+
+export interface IntentLogRecord {
+  id: string;
+  source: SourceKind;
+  senderId: string;
+  chatId?: string;
+  messageId: string;
+  text: string;
+  intent: AgentIntentV2;
+  createdAt: string;
 }
 
 export interface IncomingMessageRecord {

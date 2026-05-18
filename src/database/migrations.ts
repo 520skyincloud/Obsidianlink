@@ -140,11 +140,49 @@ CREATE TABLE IF NOT EXISTS connector_logs (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS conversation_sessions (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  sender_id TEXT NOT NULL,
+  chat_id TEXT,
+  mode TEXT NOT NULL DEFAULT 'idle',
+  topic TEXT,
+  pending_preview_id TEXT,
+  idea_draft_json TEXT,
+  last_active_at TEXT NOT NULL,
+  closed_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS conversation_turns (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  role TEXT NOT NULL,
+  text TEXT NOT NULL,
+  intent_json TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS intent_logs (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  sender_id TEXT NOT NULL,
+  chat_id TEXT,
+  message_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  intent_json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_ingest_jobs_created_at ON ingest_jobs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_runs_job_id ON agent_runs(job_id);
 CREATE INDEX IF NOT EXISTS idx_agent_step_logs_run_id ON agent_step_logs(run_id);
 CREATE INDEX IF NOT EXISTS idx_previews_status_created_at ON previews(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_connector_logs_source_created_at ON connector_logs(source, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversation_sessions_owner ON conversation_sessions(source, sender_id, chat_id, closed_at, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversation_turns_session ON conversation_turns(session_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_intent_logs_created_at ON intent_logs(created_at DESC);
 `);
   ensureColumn(db, "previews", "stored_preview_json", "TEXT");
 }

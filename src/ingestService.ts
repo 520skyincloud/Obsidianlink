@@ -4,6 +4,8 @@ import { OcrClient } from "./clients/ocr.js";
 import { OpenAIClient } from "./clients/openai.js";
 import { WebpageExtractor } from "./clients/webpage.js";
 import { runPreviewAgentGraph } from "./agent/previewGraph.js";
+import { runFeishuKnowledgeAgentV2 } from "./agent/runtime-v2/feishuKnowledgeAgent.js";
+import { classifyAgentIntentV2 } from "./agent/runtime-v2/intentRouterV2.js";
 import { Repositories, repositories } from "./database/repositories.js";
 import { IdeaConversationService } from "./ideaConversation.js";
 import { classifyMessageIntent } from "./intentRouter.js";
@@ -53,8 +55,14 @@ export class IngestService {
 
   async enqueueAgentMessage(request: AgentMessageRequest, onComplete?: (response: AgentMessageResponse) => Promise<void> | void): Promise<AgentMessageResponse> {
     const cacheKey = `${request.source}:${request.senderId}:${request.messageId}`;
-    const routed = classifyMessageIntent(request.text, { hasOpenIdeaSession: this.ideaConversation.hasOpenSession(request) });
-    if (routed.kind === "idea_chat") {
+    const hasOpenIdeaSession = this.ideaConversation.hasOpenSession(request);
+    const routed = await runFeishuKnowledgeAgentV2({
+      request,
+      repo: this.repo,
+      hasOpenIdeaSession,
+      hasPendingPreview: Boolean(this.findPendingPreview(request.source, request.senderId))
+    });
+    if (routed.shouldUseIdeaConversation) {
       const incoming = this.repo.createIncomingMessage({
         source: request.source,
         senderId: request.senderId,
@@ -80,6 +88,16 @@ export class IngestService {
     }
     const previewAction = await this.handlePreviewTextAction(request);
     if (previewAction) return previewAction;
+    if (routed.intent.intent === "casual_chat" || routed.intent.intent === "help" || routed.intent.intent === "status" || routed.intent.intent === "knowledge_question") {
+      const reply = routed.reply?.trim() || (await this.handleAgentMessage(request)).reply;
+      return {
+        ok: true,
+        action: "chat_reply",
+        reply,
+        writtenFiles: [],
+        warnings: []
+      };
+    }
     if (isImmediateChatIntent(request.text)) {
       return this.handleAgentMessage(request);
     }
@@ -359,6 +377,31 @@ export class IngestService {
 
   runToolCalls(runId: string) {
     return this.repo.listRunToolCalls(runId);
+  }
+
+  sessions(limit = 50) {
+    return this.repo.listConversationSessions(limit);
+  }
+
+  session(sessionId: string) {
+    const session = this.repo.getConversationSession(sessionId);
+    if (!session) return undefined;
+    return { ...session, turns: this.repo.listConversationTurns(sessionId) };
+  }
+
+  closeSession(sessionId: string) {
+    return this.repo.closeConversationSession(sessionId);
+  }
+
+  intentLogs(limit = 80) {
+    return this.repo.listIntentLogs(limit);
+  }
+
+  debugIntent(request: AgentMessageRequest) {
+    return classifyAgentIntentV2(request.text, {
+      hasOpenIdeaSession: this.ideaConversation.hasOpenSession(request),
+      hasPendingPreview: Boolean(this.findPendingPreview(request.source, request.senderId))
+    });
   }
 
   dbPreviews(limit = 50, status?: string) {

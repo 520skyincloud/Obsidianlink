@@ -35,7 +35,10 @@ const agentMessageSchema = z.object({
   text: z.string().min(1),
   source: sourceKindSchema.default("web"),
   senderId: z.string().min(1),
+  chatId: z.string().optional(),
   messageId: z.string().min(1),
+  mode: z.enum(["preview_only", "auto", "confirm_context"]).optional(),
+  raw: z.record(z.string(), z.unknown()).optional(),
   autoWrite: z.boolean().optional().default(true)
 });
 
@@ -606,6 +609,48 @@ export function createApp(service = new IngestService(), vault = new ObsidianVau
   app.post("/api/agent/runs/:runId/retry", async (req, res, next) => {
     try {
       res.json(await service.retryRun(req.params.runId));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/agent/sessions", (req, res) => {
+    const limit = Number(req.query.limit ?? 50);
+    res.json({ sessions: service.sessions(Number.isFinite(limit) ? limit : 50) });
+  });
+
+  app.get("/api/agent/sessions/:sessionId", (req, res) => {
+    const session = service.session(req.params.sessionId);
+    if (!session) {
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    res.json({ session });
+  });
+
+  app.post("/api/agent/sessions/:sessionId/close", (req, res) => {
+    const session = service.closeSession(req.params.sessionId);
+    if (!session) {
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    res.json({ session });
+  });
+
+  app.get("/api/agent/intent-logs", (req, res) => {
+    const limit = Number(req.query.limit ?? 80);
+    res.json({ logs: service.intentLogs(Number.isFinite(limit) ? limit : 80) });
+  });
+
+  app.post("/api/agent/debug-intent", (req, res, next) => {
+    try {
+      const body = agentMessageSchema.parse({
+        messageId: `debug-${Date.now()}`,
+        senderId: "debug-user",
+        source: "web",
+        ...req.body
+      });
+      res.json({ intent: service.debugIntent(body) });
     } catch (error) {
       next(error);
     }

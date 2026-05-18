@@ -4,10 +4,15 @@ import {
   AgentRunStatus,
   AgentStepLogRecord,
   AgentStepStatus,
+  AgentIntentV2,
+  ConversationMode,
+  ConversationSessionRecord,
+  ConversationTurnRecord,
   IngestJobRecord,
   IngestJobStatus,
   IngestIntentType,
   IncomingMessageRecord,
+  IntentLogRecord,
   SourceKind,
   StoredPreview,
   ToolCallRecord
@@ -437,6 +442,104 @@ export class Repositories {
       updatedAt: String(row.updated_at)
     }));
   }
+
+  getOpenConversationSession(source: SourceKind, senderId: string, chatId?: string): ConversationSessionRecord | undefined {
+    const row = this.db
+      .prepare(
+        `SELECT * FROM conversation_sessions
+        WHERE source = ? AND sender_id = ? AND COALESCE(chat_id, '') = COALESCE(?, '') AND closed_at IS NULL
+        ORDER BY updated_at DESC LIMIT 1`
+      )
+      .get(source, senderId, chatId ?? null) as Row | undefined;
+    return row ? toConversationSession(row) : undefined;
+  }
+
+  getConversationSession(id: string): ConversationSessionRecord | undefined {
+    const row = this.db.prepare("SELECT * FROM conversation_sessions WHERE id = ?").get(id) as Row | undefined;
+    return row ? toConversationSession(row) : undefined;
+  }
+
+  listConversationSessions(limit = 50): ConversationSessionRecord[] {
+    return (this.db.prepare("SELECT * FROM conversation_sessions ORDER BY updated_at DESC LIMIT ?").all(limit) as Row[]).map(toConversationSession);
+  }
+
+  upsertConversationSession(input: {
+    id?: string;
+    source: SourceKind;
+    senderId: string;
+    chatId?: string;
+    mode: ConversationMode;
+    topic?: string;
+    pendingPreviewId?: string;
+    ideaDraft?: unknown;
+    closedAt?: string | null;
+  }): ConversationSessionRecord {
+    const now = new Date().toISOString();
+    const existing = input.id ? this.getConversationSession(input.id) : this.getOpenConversationSession(input.source, input.senderId, input.chatId);
+    const id = existing?.id ?? input.id ?? dbId("sess");
+    this.db
+      .prepare(
+        `INSERT INTO conversation_sessions
+        (id, source, sender_id, chat_id, mode, topic, pending_preview_id, idea_draft_json, last_active_at, closed_at, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          mode = excluded.mode,
+          topic = COALESCE(excluded.topic, conversation_sessions.topic),
+          pending_preview_id = COALESCE(excluded.pending_preview_id, conversation_sessions.pending_preview_id),
+          idea_draft_json = COALESCE(excluded.idea_draft_json, conversation_sessions.idea_draft_json),
+          last_active_at = excluded.last_active_at,
+          closed_at = excluded.closed_at,
+          updated_at = excluded.updated_at`
+      )
+      .run(
+        id,
+        input.source,
+        input.senderId,
+        input.chatId ?? null,
+        input.mode,
+        input.topic ?? null,
+        input.pendingPreviewId ?? null,
+        input.ideaDraft === undefined ? null : json(input.ideaDraft),
+        now,
+        input.closedAt === undefined ? existing?.closedAt ?? null : input.closedAt,
+        existing?.createdAt ?? now,
+        now
+      );
+    return this.getConversationSession(id)!;
+  }
+
+  closeConversationSession(id: string): ConversationSessionRecord | undefined {
+    const now = new Date().toISOString();
+    this.db.prepare("UPDATE conversation_sessions SET mode = 'idle', closed_at = ?, updated_at = ?, last_active_at = ? WHERE id = ?").run(now, now, now, id);
+    return this.getConversationSession(id);
+  }
+
+  addConversationTurn(input: { sessionId: string; role: ConversationTurnRecord["role"]; text: string; intent?: AgentIntentV2 }): ConversationTurnRecord {
+    const id = dbId("turn");
+    const now = new Date().toISOString();
+    this.db
+      .prepare("INSERT INTO conversation_turns (id, session_id, role, text, intent_json, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .run(id, input.sessionId, input.role, input.text, input.intent === undefined ? null : json(input.intent), now);
+    return this.listConversationTurns(input.sessionId).find((turn) => turn.id === id)!;
+  }
+
+  listConversationTurns(sessionId: string): ConversationTurnRecord[] {
+    return (this.db.prepare("SELECT * FROM conversation_turns WHERE session_id = ? ORDER BY created_at ASC").all(sessionId) as Row[]).map(toConversationTurn);
+  }
+
+  addIntentLog(input: { source: SourceKind; senderId: string; chatId?: string; messageId: string; text: string; intent: AgentIntentV2 }): IntentLogRecord {
+    const id = dbId("intent");
+    const now = new Date().toISOString();
+    this.db
+      .prepare("INSERT INTO intent_logs (id, source, sender_id, chat_id, message_id, text, intent_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(id, input.source, input.senderId, input.chatId ?? null, input.messageId, input.text, json(input.intent), now);
+    const row = this.db.prepare("SELECT * FROM intent_logs WHERE id = ?").get(id) as Row;
+    return toIntentLog(row);
+  }
+
+  listIntentLogs(limit = 80): IntentLogRecord[] {
+    return (this.db.prepare("SELECT * FROM intent_logs ORDER BY created_at DESC LIMIT ?").all(limit) as Row[]).map(toIntentLog);
+  }
 }
 
 export const repositories = new Repositories();
@@ -558,5 +661,55 @@ function toPreviewRow(row: Row) {
     markdownPreview: text(row.markdown_preview) ?? "",
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at)
+  };
+}
+
+function toConversationSession(row: Row): ConversationSessionRecord {
+  return {
+    id: String(row.id),
+    source: row.source as SourceKind,
+    senderId: String(row.sender_id),
+    chatId: text(row.chat_id),
+    mode: row.mode as ConversationMode,
+    topic: text(row.topic),
+    pendingPreviewId: text(row.pending_preview_id),
+    ideaDraft: parseJson(row.idea_draft_json, undefined),
+    lastActiveAt: String(row.last_active_at),
+    closedAt: text(row.closed_at),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at)
+  };
+}
+
+function toConversationTurn(row: Row): ConversationTurnRecord {
+  return {
+    id: String(row.id),
+    sessionId: String(row.session_id),
+    role: row.role as ConversationTurnRecord["role"],
+    text: String(row.text),
+    intent: parseJson(row.intent_json, undefined),
+    createdAt: String(row.created_at)
+  };
+}
+
+function toIntentLog(row: Row): IntentLogRecord {
+  return {
+    id: String(row.id),
+    source: row.source as SourceKind,
+    senderId: String(row.sender_id),
+    chatId: text(row.chat_id),
+    messageId: String(row.message_id),
+    text: String(row.text),
+    intent: parseJson(row.intent_json, {
+      intent: "unknown",
+      confidence: 0,
+      reason: "unparseable_intent_log",
+      shouldAck: false,
+      shouldCreatePreview: false,
+      shouldWriteVault: false,
+      needsClarification: true,
+      entities: []
+    } satisfies AgentIntentV2),
+    createdAt: String(row.created_at)
   };
 }
