@@ -1,6 +1,7 @@
 {
   "name": "obsidianlink",
   "version": "0.1.0",
+  "description": "飞书聊天入口驱动的本地 Obsidian 知识库智能体：抖音、GitHub、网页和想法自动解析，确认后入库。",
   "private": true,
   "type": "module",
   "scripts": {

@@ -1,6 +1,6 @@
 # ObsidianLink
 
-ObsidianLink 是一个本机优先的个人知识摄入智能体。你把抖音链接、GitHub 链接、网页文章、项目名或自然语言想法发给它，它会自动解析来源、研究项目、理解图文/视频内容、生成知识预览，确认后写入本地 Obsidian Vault。
+ObsidianLink 是一个以飞书机器人为入口的本地 Obsidian 知识库智能体。你在飞书里发抖音链接、GitHub 链接、网页文章、项目名或开发想法，它会自动判断意图、解析内容、研究项目、生成入库预览；你点确认后，它才写入本地 Obsidian Vault。
 
 它不是一个云端笔记应用，而是一套“聊天入口 + LangGraph 智能体 + 本地 Obsidian”的自动化工作流。
 
@@ -27,6 +27,207 @@ http://127.0.0.1:38721/
 /Users/sky/Documents/obsidian/sky
 ```
 
+## 先看这个：飞书场景怎么用
+
+你可以把它理解成一个“飞书里的知识库助手”：
+
+```text
+你在飞书发消息
+  -> ObsidianLink 先判断这是闲聊、想法、抖音、GitHub、网页还是知识问题
+  -> 普通聊天直接文字回复
+  -> 需要入库时才发确认卡片
+  -> 你点“入库 / 联想 / 入库并联想”
+  -> 主知识或主项目写入本地 Obsidian
+```
+
+飞书里可以这样用：
+
+| 你发什么 | 它会怎么做 |
+|---|---|
+| `你好`、`测试` | 普通文字回复，不入库，不发卡片。 |
+| 抖音链接 | 解析视频/图文，OCR 画面文字，生成知识预览卡。 |
+| GitHub 链接 | 调 GitHub API 研究仓库，只生成一张项目卡预览。 |
+| `去 GitHub 找 MinerU 这个项目` | 自动搜索 GitHub，找到最可能的 repo 后给你项目预览。 |
+| 一个开发想法 | 先陪你聊清楚，不立即写库。 |
+| `保存刚才这个` | 把这轮想法整理成一张想法卡写入 Obsidian。 |
+| 点击预览卡的 `入库` | 真正写入本地 Obsidian。 |
+| 点击 `生成应用想法` | 只把联想结果发回飞书，不写入 Obsidian。 |
+
+最重要的规则：
+
+```text
+没有确认，不写库。
+普通聊天，不发卡片。
+额外联想，只回飞书，不塞进 Obsidian。
+GitHub 项目，默认只写一个项目文件。
+```
+
+## 飞书傻瓜式部署
+
+下面按第一次部署的顺序写。照着做，不需要先理解全部代码。
+
+### 第 1 步：准备 4 样东西
+
+| 要准备什么 | 去哪里拿 | 填到哪里 |
+|---|---|---|
+| Obsidian Vault 路径 | 你的本机 Obsidian 知识库文件夹 | `OBSIDIAN_VAULT_PATH` |
+| 模型接口 | 任意 OpenAI 兼容接口，地址必须以 `/v1` 结尾 | `OPENAI_BASE_URL`、`OPENAI_API_KEY`、`OPENAI_MODEL` |
+| GitHub Token | GitHub 设置里的 Personal Access Token | `GITHUB_TOKEN` |
+| 飞书自建应用 | 飞书开放平台创建企业自建应用 | `FEISHU_APP_ID`、`FEISHU_APP_SECRET`、`FEISHU_VERIFICATION_TOKEN` |
+
+抖音解析接口默认可以先用：
+
+```bash
+DOUYIN_PARSE_API=https://api.bugpk.com/api/douyin?url=
+```
+
+### 第 2 步：安装依赖
+
+```bash
+git clone https://github.com/520skyincloud/Obsidianlink.git
+cd Obsidianlink
+npm install
+cp .env.example .env
+```
+
+如果要识别抖音视频画面和图文图片，安装 OCR 工具：
+
+```bash
+brew install ffmpeg tesseract tesseract-lang
+```
+
+不装也能跑 GitHub、网页和普通想法；只是视频/图片 OCR 能力会弱。
+
+### 第 3 步：填写 `.env`
+
+最小能跑的飞书配置长这样：
+
+```bash
+PORT=38721
+OBSIDIAN_VAULT_PATH=/Users/你的用户名/Documents/obsidian/你的Vault
+
+OPENAI_BASE_URL=http://你的模型服务/v1
+OPENAI_API_KEY=你的模型密钥
+OPENAI_MODEL=gpt-5.5
+
+GITHUB_TOKEN=你的 GitHub Token
+DOUYIN_PARSE_API=https://api.bugpk.com/api/douyin?url=
+
+FEISHU_APP_ID=飞书应用 App ID，例如 cli_xxx
+FEISHU_APP_SECRET=飞书应用 App Secret
+FEISHU_VERIFICATION_TOKEN=飞书事件订阅 Verification Token
+FEISHU_ENCRYPT_KEY=如果飞书开了加密就填；没开可以空
+
+FEISHU_LONG_CONNECTION_ENABLED=true
+FEISHU_CARD_CALLBACK_ENABLED=true
+
+# 飞书长连接不需要公网地址；这里保留本机地址即可
+CONNECTOR_PUBLIC_BASE_URL=http://127.0.0.1:38721
+```
+
+这几个最容易填错：
+
+| 参数 | 怎么填才对 |
+|---|---|
+| `OPENAI_BASE_URL` | 必须是 OpenAI 兼容接口根地址，比如 `http://host:port/v1`，不要填到 `/chat/completions`。 |
+| `OPENAI_MODEL` | 填服务端实际支持的模型名。 |
+| `OBSIDIAN_VAULT_PATH` | 必须是本机绝对路径，不是 Obsidian 里的相对目录。 |
+| `FEISHU_LONG_CONNECTION_ENABLED` | 飞书主链路用长连接，填 `true`。 |
+| `CONNECTOR_PUBLIC_BASE_URL` | 长连接不靠公网，先不用管公网穿透。 |
+
+### 第 4 步：飞书后台这样配置
+
+在飞书开放平台创建企业自建应用后，做这些事：
+
+```text
+1. 开启机器人能力。
+2. 把机器人安装到你的企业，并加到单聊或群聊。
+3. 复制 App ID 和 App Secret，填入 .env。
+4. 在“事件与回调”里选择“使用长连接接收事件/回调”。
+5. 订阅 im.message.receive_v1，用来接收你发给机器人的消息。
+6. 订阅 card.action.trigger，用来接收你点击卡片按钮的事件。
+7. 如果开启了事件加密，把 Encrypt Key 填到 FEISHU_ENCRYPT_KEY。
+8. 给应用开通接收消息、发送消息相关权限，然后发布/安装应用。
+```
+
+飞书主链路不需要填公网 URL。  
+FRP / 公网回调只是备用模式，先不要混用。
+
+### 第 5 步：启动
+
+```bash
+npm run build
+npm run service:start
+```
+
+看状态：
+
+```bash
+npm run service:status
+```
+
+正常应该看到：
+
+```text
+Health: ok
+Vault: exists / writable
+Database: ok
+Model: 你的模型名
+```
+
+打开控制台：
+
+```text
+http://127.0.0.1:38721/
+```
+
+在“接入通道”里看飞书，正常应该显示：
+
+```text
+飞书长连接已连接，正在接收事件。
+```
+
+### 第 6 步：飞书里测试
+
+按这个顺序发：
+
+```text
+你好
+```
+
+应该只收到普通文字回复，不应该出现卡片。
+
+```text
+去 GitHub 找 LangGraph 这个项目
+```
+
+应该先收到一条普通文字“收到，正在解析”，然后收到项目预览卡。
+
+```text
+我有个开发想法，想做一个自动整理抖音技术视频的知识库助手
+```
+
+应该进入普通聊天，不应该直接入库。
+
+```text
+保存刚才这个
+```
+
+这时才会把刚才那轮想法写入 Obsidian。
+
+## 出问题先看这里
+
+| 现象 | 先检查什么 |
+|---|---|
+| 飞书发消息没回复 | `.env` 里 `FEISHU_LONG_CONNECTION_ENABLED=true`，服务是否重启，飞书后台是否选择长连接。 |
+| 卡片按钮点了没反应 | 飞书是否订阅 `card.action.trigger`，接入页长连接是否 running。 |
+| 一条消息重复回复 | 不要同时开启长连接和 HTTP webhook 接收同一类事件。 |
+| 模型报错 | 控制台“配置”页测试模型；确认 `OPENAI_BASE_URL` 到 `/v1`。 |
+| GitHub 找不到项目 | 检查 `GITHUB_TOKEN`，或把项目名说得更完整。 |
+| 抖音解析失败 | 检查 `DOUYIN_PARSE_API`，或先用控制台测试真实抖音链接。 |
+| 视频没有 OCR | 本机是否安装 `ffmpeg` 和 `tesseract`。 |
+| Obsidian 没写入 | 检查 Vault 路径是否存在、是否可写；没有点确认不会写入。 |
+
 ## 适合谁
 
 - 经常刷到抖音技术视频、图文教程、GitHub 项目，但转头就忘的人。
@@ -42,7 +243,7 @@ http://127.0.0.1:38721/
 - 图文 OCR：下载抖音图文图片，逐张 OCR，再交给模型总结内容，处理后清理缓存。
 - GitHub 研究：通过 GitHub API 获取 repo 描述、README、stars、topics、license、更新时间。
 - LangGraph 智能体：按节点记录输入解析、来源路由、工具调用、知识抽取、创意生成、预览计划。
-- 预览确认：飞书/网页先给预览卡片，用户选择入库、生成应用想法、入库并保存想法。
+- 预览确认：飞书/网页先给预览卡片，用户选择入库、生成应用想法、入库并联想。
 - Obsidian 写入：只写入主项目或主知识卡，额外应用想法默认只回到聊天，不乱塞进 Vault。
 - SQLite 状态库：记录消息、job、run、step logs、tool calls、previews、vault_files。
 - 本地控制台：查看对话、接入通道、预览确认、流水线、Vault、配置状态。
@@ -571,7 +772,7 @@ ObsidianLink 会先解析来源类型：
   -> 生成预览
 ```
 
-同一个 repo 会使用 `github_repo` 去重，不会重复创建一堆文件。额外应用想法默认只发回聊天窗口，不自动写入 Obsidian，除非用户选择“入库并保存想法”。
+同一个 repo 会使用 `github_repo` 去重，不会重复创建一堆文件。额外应用想法默认只发回聊天窗口，不自动写入 Obsidian；即使选择“入库并联想”，也只写主项目卡，联想只发回飞书。
 
 ## 数据库
 
