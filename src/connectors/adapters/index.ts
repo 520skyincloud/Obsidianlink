@@ -206,7 +206,7 @@ const feishuAdapter: ConnectorAdapter = {
   adapter: "feishu-events",
   label: "飞书",
   endpoint: "/connectors/feishu/message",
-  description: "飞书机器人事件回调：支持 URL verification、token 校验和文本消息事件。",
+  description: "飞书机器人长连接优先：消息和卡片按钮都可由 WSClient 接收；HTTP 回调只作为备用。",
   mode: "protocol",
   getConfigSchema: () => feishuFields,
   getSetupStatus: (config) => {
@@ -214,7 +214,7 @@ const feishuAdapter: ConnectorAdapter = {
     return makeStatus(
       feishuFields,
       config,
-      ["Webhook URL verification", "Verification Token 校验", "AES-256-CBC 加密事件解密", "飞书长连接 WSClient", "文本消息事件解析"],
+      ["飞书长连接 WSClient", "文本消息事件解析", "卡片按钮事件 card.action.trigger", "Webhook URL verification 备用", "Verification Token 校验", "AES-256-CBC 加密事件解密"],
       [
         config.values.encryptKey ? "已配置 Encrypt Key；会自动解密飞书 encrypt 事件。" : "未配置 Encrypt Key；Webhook 加密推送需填写 Encrypt Key。",
         runtime.note,
@@ -268,7 +268,7 @@ const feishuAdapter: ConnectorAdapter = {
     ok: makeStatus(feishuFields, config, []).configured && config.enabled,
     message: makeStatus(feishuFields, config, []).configured
       ? config.values.longConnection === "true"
-        ? "飞书配置字段完整；长连接模式开启后不需要公网 webhook。"
+        ? "飞书配置字段完整；长连接可接收普通消息和卡片按钮事件，不需要公网 webhook。"
         : "飞书回调配置字段完整；Webhook 模式请在飞书后台用回调 URL 完成订阅校验。"
       : "飞书配置未完整，至少需要 App ID、App Secret、Verification Token。"
   })

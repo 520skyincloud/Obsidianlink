@@ -1,7 +1,7 @@
 const pageDefs = [
   { id: "dashboard", title: "今日摄入", subtitle: "从聊天入口到 Obsidian 的本机智能体流水线" },
   { id: "chat", title: "对话测试", subtitle: "本地模拟聊天入口，验证意图判别、预览、确认和写入链路" },
-  { id: "connectors", title: "接入通道", subtitle: "真实平台 SDK、长连接、回调地址和连接测试" },
+  { id: "connectors", title: "接入通道", subtitle: "飞书长连接优先，公网回调仅作备用" },
   { id: "previews", title: "预览确认", subtitle: "只把主知识/主项目写入 Obsidian，额外联想只回到对话" },
   { id: "pipeline", title: "处理流水线", subtitle: "查看 Job、Agent Run、节点日志和工具调用" },
   { id: "vault", title: "知识库", subtitle: "Vault 目录、最近写入、搜索和断链检查" },
@@ -553,12 +553,12 @@ function sourceButton(source, label, iconSvg) {
 
 function healthTags() {
   const feishu = state.connectors.find((item) => item.source === "feishu");
-  const feishuOnline = Boolean(feishu?.setupStatus?.configured && feishu?.lastRequestAt);
+  const feishuOnline = Boolean(feishu?.longConnection?.running);
   const tools = state.health?.tools || {};
   return [
     tag("服务在线", state.health?.ok),
     tag("Vault 可写", state.health?.vault?.writable),
-    tag("飞书回调", feishuOnline),
+    tag("飞书长连接", feishuOnline),
     tag(`模型 ${state.health?.model?.model || "未配置"}`, state.health?.model?.configured),
     tag("OCR 可用", tools.ffmpeg && tools.tesseract)
   ].join("");
@@ -709,13 +709,31 @@ function connectorCard(connector) {
 function connectorDetail(connector) {
   if (!connector) return `<div class="right-panel"><div class="empty-state">请选择一个接入通道。</div></div>`;
   const fields = connector.configFields || [];
+  const isFeishu = connector.source === "feishu";
+  const longConnection = connector.longConnection;
+  const primaryEndpointLabel = isFeishu ? "备用 HTTP 回调地址" : "回调地址";
+  const primaryEndpointHint = isFeishu
+    ? "飞书推荐使用长连接：普通消息和卡片按钮事件都走 WSClient；这个公网地址只用于 webhook 备用。"
+    : (connector.publicUrl?.message || "真实平台回调需要公网地址。");
   return `
     <div class="right-panel">
       <div class="panel-header"><div class="panel-title">${escapeHtml(connector.label)}</div><span class="running-badge">${connector.setupStatus?.configured ? "可用" : "待配置"}</span></div>
       <div class="detail-text">${escapeHtml(connector.description || "")}</div>
+      ${isFeishu ? `
+        <div class="detail-card" style="padding:12px;margin-top:16px;">
+          <div class="mini-label">主接入方式</div>
+          <div class="event-head" style="margin-top:8px;">
+            <span class="status-dot ${longConnection?.running ? "green" : "red"}"></span>
+            <strong>飞书长连接</strong>
+            <span>${longConnection?.running ? "运行中" : "未运行"}</span>
+          </div>
+          <div class="detail-text" style="margin-top:8px;">接收普通消息和卡片按钮事件，不依赖 FRP。${longConnection?.note ? ` ${escapeHtml(longConnection.note)}` : ""}</div>
+        </div>
+      ` : ""}
       <div class="detail-card" style="padding:12px;margin-top:16px;">
-        <div class="mini-label">回调地址</div>
+        <div class="mini-label">${primaryEndpointLabel}</div>
         <div class="code-block">${escapeHtml(connector.url || connector.endpoint || "")}</div>
+        <div class="detail-text" style="margin-top:8px;">${escapeHtml(primaryEndpointHint)}</div>
         <div class="action-row"><button class="btn btn-default btn-small" data-action="copy-connector-url">复制地址</button></div>
       </div>
       <div class="form-grid" style="grid-template-columns:1fr;margin-top:16px;">

@@ -13,7 +13,7 @@ import {
   getConnectorAdapter
 } from "./connectors/adapters/index.js";
 import { ConnectorAdapter, ConnectorRuntimeConfig } from "./connectors/adapters/types.js";
-import { handleFeishuCardCallback, sendFeishuProcessingAck, startFeishuLongConnection, stopFeishuLongConnection } from "./connectors/feishuLongConnection.js";
+import { getFeishuLongConnectionStatus, handleFeishuCardCallback, sendFeishuProcessingAck, startFeishuLongConnection, stopFeishuLongConnection } from "./connectors/feishuLongConnection.js";
 import { databaseStatus } from "./database/db.js";
 import { repositories } from "./database/repositories.js";
 import { updateEnvFile } from "./envFile.js";
@@ -248,8 +248,9 @@ export function createApp(service = new IngestService(), vault = new ObsidianVau
         await updateEnvFile(updates);
         for (const [key, value] of Object.entries(updates)) process.env[key] = value;
       }
-      if (source === "feishu" && process.env.FEISHU_LONG_CONNECTION_ENABLED === "true") {
-        void startFeishuLongConnection(service);
+      if (source === "feishu") {
+        if (process.env.FEISHU_LONG_CONNECTION_ENABLED === "true") void startFeishuLongConnection(service);
+        else stopFeishuLongConnection();
       }
       res.json({ ok: true, connector: connectorView(connector) });
     } catch (error) {
@@ -273,6 +274,10 @@ export function createApp(service = new IngestService(), vault = new ObsidianVau
       if (Object.keys(updates).length) {
         await updateEnvFile(updates);
         for (const [key, value] of Object.entries(updates)) process.env[key] = value;
+      }
+      if (source === "feishu") {
+        if (process.env.FEISHU_LONG_CONNECTION_ENABLED === "true") void startFeishuLongConnection(service);
+        else stopFeishuLongConnection();
       }
       res.json({ ok: true, connector: connectorView(connector) });
     } catch (error) {
@@ -1264,6 +1269,7 @@ function connectorView(connector: ConnectorAdapter) {
   const runtimeConfig = connectorConfig(connector, connectorPublicBaseUrl());
   const setup = connector.getSetupStatus(runtimeConfig);
   const runtime = connectorRuntime.get(connector.source) ?? {};
+  const longConnection = connector.source === "feishu" ? getFeishuLongConnectionStatus() : undefined;
   const configuredFields = Object.fromEntries(
     connector.getConfigSchema().map((field) => [field.key, Boolean(runtimeConfig.values[field.key])])
   );
@@ -1301,6 +1307,7 @@ function connectorView(connector: ConnectorAdapter) {
     url: `${connectorPublicBaseUrl()}${connector.endpoint}`,
     controls: connectorControls(connector),
     publicUrl: publicUrlStatus(connectorPublicBaseUrl(), connector.source),
+    longConnection,
     configuredFields,
     setupStatus: setup,
     lastRequestAt: runtime.lastRequestAt,
@@ -1326,6 +1333,13 @@ function publicUrlStatus(publicBaseUrl: string, source?: string) {
   const isHttps = /^https:\/\//i.test(publicBaseUrl);
   const isLocal = /localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]/i.test(publicBaseUrl);
   const requiresHttps = ["wechat", "wecom", "dingtalk"].includes(source ?? "");
+  if (source === "feishu" && process.env.FEISHU_LONG_CONNECTION_ENABLED === "true") {
+    return {
+      value: publicBaseUrl,
+      usableByExternalPlatforms: false,
+      message: "飞书当前使用长连接，普通消息和卡片按钮都不依赖公网回调；该地址仅作 webhook 备用。"
+    };
+  }
   const usable = isHttp && !isLocal && (!requiresHttps || isHttps);
   return {
     value: publicBaseUrl,

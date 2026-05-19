@@ -219,7 +219,7 @@ npm run dev
 | `PORT` | 否 | `38721` | 本机 HTTP 服务端口。控制台和 API 都跑在这个端口。 |
 | `OBSIDIANLINK_DB_PATH` | 否 | `./data/obsidianlink.sqlite` | SQLite 状态库路径。保存消息、任务、预览、日志和写入索引。 |
 | `OBSIDIAN_VAULT_PATH` | 是 | `/Users/sky/Documents/obsidian/sky` | Obsidian Vault 根目录。所有 Markdown 只会写入这个目录内。 |
-| `CONNECTOR_PUBLIC_BASE_URL` | 视情况 | `https://kb.example.com` | 公网回调基地址。长连接不需要；HTTP webhook 和飞书卡片按钮需要。 |
+| `CONNECTOR_PUBLIC_BASE_URL` | 视情况 | `https://kb.example.com` | 公网回调基地址。飞书长连接不需要；HTTP webhook 备用模式和其他平台回调才需要。 |
 
 ### 模型参数
 
@@ -251,7 +251,7 @@ npm run dev
 | `FEISHU_VERIFICATION_TOKEN` | 回调/事件建议填 | `xxx` | 飞书事件订阅和卡片回调校验 token。 |
 | `FEISHU_ENCRYPT_KEY` | 可选 | `xxx` | 如果飞书开启事件加密，需要填写。不开加密可以空。 |
 | `FEISHU_LONG_CONNECTION_ENABLED` | 长连接必填 | `true` | 是否启用飞书长连接。长连接不需要公网 URL。 |
-| `FEISHU_CARD_CALLBACK_ENABLED` | 卡片按钮必填 | `true` | 是否在飞书预览卡里显示可点击按钮。按钮回调需要公网地址。 |
+| `FEISHU_CARD_CALLBACK_ENABLED` | 推荐开启 | `true` | 是否在飞书预览卡里显示可点击按钮。长连接可接收按钮事件；公网卡片回调只是备用。 |
 
 安全约定：
 
@@ -327,19 +327,17 @@ FEISHU_APP_ID=你的飞书应用 App ID
 FEISHU_APP_SECRET=你的飞书应用 App Secret
 FEISHU_VERIFICATION_TOKEN=你的事件订阅 Verification Token
 FEISHU_LONG_CONNECTION_ENABLED=true
-
-# 如果没有公网地址，先关掉按钮，卡片会提示你用文字回复“入库知识/生成应用想法/入库并联想”
-FEISHU_CARD_CALLBACK_ENABLED=false
+FEISHU_CARD_CALLBACK_ENABLED=true
 CONNECTOR_PUBLIC_BASE_URL=http://127.0.0.1:38721
 ```
 
 这套配置的效果：
 
 ```text
-飞书消息 -> 飞书长连接 -> 本机 ObsidianLink -> LangGraph 处理 -> 飞书回复卡片/文本
+飞书消息 / 卡片按钮 -> 飞书长连接 -> 本机 ObsidianLink -> LangGraph 处理 -> 飞书回复卡片/文本
 ```
 
-它不要求公网地址，适合先把收消息、解析、预览、入库跑通。
+它不要求公网地址，适合把收消息、解析、预览、卡片按钮、入库完整跑通。
 
 飞书开放平台侧需要做的事：
 
@@ -347,12 +345,12 @@ CONNECTOR_PUBLIC_BASE_URL=http://127.0.0.1:38721
 1. 创建企业自建应用
 2. 开启机器人能力，并把机器人加到单聊或群聊
 3. 记录 App ID 和 App Secret，填到 .env
-4. 如果用长连接，订阅消息事件时选择“使用长连接接收事件”
+4. 订阅消息事件和卡片按钮事件时选择“使用长连接接收事件”
 5. 给应用开通发送消息、接收消息相关权限，并发布/安装应用到当前企业
 6. 回到 ObsidianLink 控制台“接入通道”，启动飞书长连接并看状态
 ```
 
-如果你已经有 HTTPS 公网地址或内网穿透，并且想点飞书卡片按钮，再改成：
+如果你要改用 HTTP webhook 备用模式，或者某些场景必须让飞书请求你的服务器，再配置公网地址：
 
 ```bash
 FEISHU_CARD_CALLBACK_ENABLED=true
@@ -365,11 +363,12 @@ CONNECTOR_PUBLIC_BASE_URL=https://your-public-domain
 https://your-public-domain/connectors/feishu/card
 ```
 
-这就是当前推荐组合：
+推荐组合：
 
 ```text
 消息接收：飞书长连接，不需要公网
-卡片按钮：公网 / 内网穿透回调，可选
+卡片按钮：飞书长连接，不需要公网
+公网回调：备用，不和长连接同时接收同一类事件
 ```
 
 #### 3.2 长连接模式
@@ -388,8 +387,8 @@ FEISHU_LONG_CONNECTION_ENABLED=true
 - 不需要把 `127.0.0.1` 暴露给飞书。
 - ObsidianLink 会用飞书 SDK 主动连到飞书开放平台，事件从这条连接推回本机。
 - 适合本机常驻、个人使用、开发调试。
-- 如果只是“飞书发消息给机器人，机器人回复预览/文本”，优先用这个。
-- 飞书机器人必须被拉进会话，且应用需要能接收 `im.message.receive_v1` 消息事件。
+- 飞书发消息、机器人回复文本/预览卡、点击卡片按钮，都优先用这个。
+- 飞书机器人必须被拉进会话，且应用需要能接收 `im.message.receive_v1` 消息事件和 `card.action.trigger` 卡片按钮事件。
 
 启动方式：
 
@@ -411,6 +410,7 @@ npm run service:restart
 | 开发想法 / 产品点子 | 先正常聊天澄清；明确“保存/入库/记下来”后写入想法。 |
 | `状态` | 返回当前待确认/任务状态。 |
 | `取消` | 取消最近一个待确认预览。 |
+| 点击预览卡按钮 | 长连接接收 `card.action.trigger`，执行入库/联想/入库并联想。 |
 
 #### 3.3 公网回调模式
 
@@ -451,15 +451,15 @@ FEISHU_VERIFICATION_TOKEN=
 | `/connectors/feishu/message` | 飞书事件订阅，把用户消息 HTTP POST 到 ObsidianLink。 |
 | `/connectors/feishu/card` | 飞书卡片按钮点击回调，比如“入库知识/生成应用想法/入库并联想”。 |
 
-注意：如果你已经启用了长连接接收消息，通常不需要再配置 `/connectors/feishu/message`，否则同一条消息可能被两条通道重复处理。卡片按钮仍然可以单独配置 `/connectors/feishu/card`。
+注意：如果你已经启用了长连接，通常不需要再配置 `/connectors/feishu/message` 或 `/connectors/feishu/card`，否则同一事件可能被两条通道重复处理。
 
 #### 3.4 两种模式怎么选
 
 ```text
 只想本机收飞书消息       -> 用长连接，不用公网回调
+需要交互卡片按钮点击回调  -> 优先用长连接的 card.action.trigger
 需要飞书 HTTP 事件订阅    -> 用公网回调
-需要交互卡片按钮点击回调  -> 卡片回调必须是公网可访问地址
-本机调试卡片按钮          -> 用内网穿透提供公网地址
+本机调试 HTTP webhook      -> 用内网穿透提供公网地址
 ```
 
 通用公网地址配置：
@@ -470,10 +470,10 @@ CONNECTOR_PUBLIC_BASE_URL=https://your-public-domain
 
 注意：
 
-- 长连接接收消息不依赖 `CONNECTOR_PUBLIC_BASE_URL`。
-- 卡片按钮点击是平台回调，必须能访问 `CONNECTOR_PUBLIC_BASE_URL`。
-- 如果卡片按钮点了没反应，优先检查 `/connectors/feishu/card` 的公网可访问性和 verification token。
-- 同一时间不要同时让长连接和事件回调都接收普通消息，除非你确认消息幂等和去重配置没有问题。
+- 长连接接收消息和卡片按钮都不依赖 `CONNECTOR_PUBLIC_BASE_URL`。
+- `CONNECTOR_PUBLIC_BASE_URL` 只给 HTTP webhook 备用模式使用。
+- 如果卡片按钮点了没反应，长连接模式优先检查 `card.action.trigger` 是否订阅到了长连接，以及接入页长连接是否运行中。
+- 同一时间不要同时让长连接和 HTTP 事件回调接收同一类事件，除非你确认消息幂等和去重配置没有问题。
 
 #### 3.5 飞书预览卡业务
 
@@ -497,7 +497,7 @@ CONNECTOR_PUBLIC_BASE_URL=https://your-public-domain
 
 如果 `FEISHU_CARD_CALLBACK_ENABLED=false`，预览卡不会显示按钮，而是提示你直接在飞书里回复上面的文字。
 
-如果 `FEISHU_CARD_CALLBACK_ENABLED=true`，必须保证：
+如果 `FEISHU_CARD_CALLBACK_ENABLED=true`，长连接模式下需要在飞书开放平台把 `card.action.trigger` 事件订阅到长连接。只有 HTTP webhook 备用模式才需要保证：
 
 ```text
 CONNECTOR_PUBLIC_BASE_URL + /connectors/feishu/card
@@ -682,7 +682,7 @@ curl -X POST http://127.0.0.1:38721/api/vault/check-broken-links \
 - 图文 OCR 失败：确认图片 URL 可访问、tesseract 可用。
 - 飞书长连接收不到消息：确认 `FEISHU_LONG_CONNECTION_ENABLED=true`、App ID/App Secret 正确，并在接入页查看长连接状态。
 - 飞书公网回调收不到消息：确认公网 URL、事件订阅、verification token。
-- 飞书卡片按钮点了没反应：确认卡片回调地址不是 `127.0.0.1`，平台必须能访问 `/connectors/feishu/card`。
+- 飞书卡片按钮点了没反应：长连接模式优先确认飞书开放平台已订阅 `card.action.trigger`，接入页显示长连接运行中；只有 webhook 备用模式才检查 `/connectors/feishu/card` 公网可访问。
 - 写入失败：确认 Vault 路径存在且可写。
 
 ## 开发说明
