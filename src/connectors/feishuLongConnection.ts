@@ -251,6 +251,23 @@ export async function sendFeishuReply(event: unknown, text: string, response?: A
   const eventText = extractFeishuEventText(event);
   const chatId = extractFeishuChatId(event);
   const previewForCard = previewFromResponse(response);
+  if (shouldSendPlainTextReply(response, previewForCard)) {
+    await client.im.message.reply({
+      path: { message_id: messageId },
+      data: {
+        msg_type: "text",
+        content: JSON.stringify({ text })
+      }
+    });
+    repositories.addConnectorLog({
+      source: "feishu",
+      eventType: "reply",
+      status: "success",
+      message: "已发送飞书普通文本回复",
+      metadata: { messageId, chatId, interactive: false, action: response?.action, eventText: eventText?.slice(0, 80) }
+    });
+    return;
+  }
   const card = previewForCard && shouldSendDecisionCard(previewForCard, eventText)
     ? buildPreviewDecisionCard(previewForCard, { chatId })
     : buildTextReplyCard(text, response);
@@ -268,6 +285,13 @@ export async function sendFeishuReply(event: unknown, text: string, response?: A
       message: previewForCard && shouldSendDecisionCard(previewForCard, eventText) ? "已发送飞书交互确认卡片" : "已发送飞书回复卡片",
     metadata: { messageId, chatId, interactive: true, action: response?.action, previewId: response?.previewId, hasPreview: Boolean(previewForCard), eventText: eventText?.slice(0, 80) }
   });
+}
+
+function shouldSendPlainTextReply(response: AgentMessageResponse | undefined, previewForCard: IngestPreview | undefined): boolean {
+  if (!response || response.action !== "chat_reply") return false;
+  if (previewForCard || response.previewId || response.jobId || response.runId) return false;
+  if (response.warnings?.length) return false;
+  return true;
 }
 
 function previewFromResponse(response?: AgentMessageResponse): IngestPreview | undefined {

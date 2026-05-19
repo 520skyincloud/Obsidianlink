@@ -42,7 +42,7 @@ afterEach(() => {
 });
 
 describe("Feishu chat flow", () => {
-  it("replies to casual chat immediately with a styled card and does not queue a job", async () => {
+  it("replies to casual chat immediately with plain text and does not queue a job", async () => {
     const suffix = uniqueSuffix();
     const service = {
       enqueueAgentMessage: vi.fn(async () => ({
@@ -68,7 +68,7 @@ describe("Feishu chat flow", () => {
       );
       expect(createMock).not.toHaveBeenCalled();
       expect(replyMock).toHaveBeenCalledTimes(1);
-      expectFeishuInteractivePayload(mockCall(replyMock, 0), "ObsidianLink");
+      expectFeishuTextPayload(mockCall(replyMock, 0), "我在。发我抖音链接、GitHub 链接、网页或一个想法都可以。");
     } finally {
       await close();
     }
@@ -349,6 +349,13 @@ function expectFeishuInteractivePayload(callPayload: unknown, expectedTitle: str
   const content = JSON.parse(String(data?.content ?? "{}")) as Record<string, unknown>;
   expect(JSON.stringify(content)).toContain(expectedTitle);
   return content;
+}
+
+function expectFeishuTextPayload(callPayload: unknown, expectedText: string): void {
+  expect(callPayload).toBeTruthy();
+  const data = (callPayload as { data?: { msg_type?: string; content?: string } }).data;
+  expect(data?.msg_type).toBe("text");
+  expect(JSON.parse(String(data?.content ?? "{}"))).toEqual({ text: expectedText });
 }
 
 function mockCall(mock: typeof replyMock, index: number): unknown {
