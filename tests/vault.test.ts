@@ -45,6 +45,42 @@ describe("ObsidianVault write operations", () => {
     }
   });
 
+  it("deduplicates renamed GitHub project notes by github_repo frontmatter", async () => {
+    const originalVault = config.OBSIDIAN_VAULT_PATH;
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "obsidianlink-vault-repo-dedupe-"));
+    config.OBSIDIAN_VAULT_PATH = dir;
+    try {
+      const vault = new ObsidianVault();
+      const originalPath = "1_项目/0_开源项目/owner-repo.md";
+      await fs.mkdir(path.join(dir, path.dirname(originalPath)), { recursive: true });
+      await fs.writeFile(path.join(dir, originalPath), "---\ntype: project\ngithub_repo: \"owner/repo\"\n---\n# owner/repo\n\n旧项目卡", "utf8");
+
+      const renamed: GeneratedNote = {
+        title: "repo - 中文用途概括",
+        relativePath: "1_项目/0_开源项目/repo-中文用途概括.md",
+        content: "---\ntype: project\ngithub_repo: \"owner/repo\"\n---\n# repo - 中文用途概括\n\n新发现",
+        type: "project",
+        githubRepo: "owner/repo"
+      };
+
+      const plan = await vault.planNotes([renamed]);
+      expect(plan[0]).toMatchObject({
+        path: originalPath,
+        operation: "update_frontmatter"
+      });
+
+      const written = await vault.writeNotes([renamed]);
+      expect(written[0]).toBe(path.join(dir, originalPath));
+      await expect(fs.stat(path.join(dir, renamed.relativePath))).rejects.toThrow();
+      const content = await fs.readFile(path.join(dir, originalPath), "utf8");
+      expect(content).toContain("旧项目卡");
+      expect(content).toContain("新发现");
+    } finally {
+      config.OBSIDIAN_VAULT_PATH = originalVault;
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("checks broken Obsidian wiki links and suggests likely targets", async () => {
     const originalVault = config.OBSIDIAN_VAULT_PATH;
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "obsidianlink-vault-links-"));

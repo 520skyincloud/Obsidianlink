@@ -86,7 +86,7 @@ function cleanupGitHubSearchQuery(input: string): string {
     .replace(/git\s*hub|github/gi, " ")
     .replace(/开源项目|项目名称|项目名字|项目名|项目|仓库名称|仓库名字|仓库名|仓库|repo|repository/gi, " ")
     .replace(/帮我|麻烦|请|去|在|上|里|里面|中的|中|的|给我|帮忙/gi, " ")
-    .replace(/找到|找一下|搜索一下|搜一下|搜索|搜|研究一下|研究|看看|看一下|查一下|查找|定位|是哪个|叫什么|名为|叫/gi, " ")
+    .replace(/找到|找一下|找|搜索一下|搜一下|搜索|搜|研究一下|研究|看看|看一下|查一下|查找|定位|是哪个|叫什么|名为|叫/gi, " ")
     .replace(/\b这个\b|\bthat\b|\bthe\b/gi, " ")
     .replace(/[，。！？；：、,.!?;:()[\]{}"'“”‘’]/g, " ")
     .replace(/\s+/g, " ")
@@ -98,8 +98,8 @@ function extractExplicitProjectQuery(input: string): string | undefined {
   const patterns = [
     /(?:项目名|项目名称|项目名字|仓库名|仓库名称|仓库名字|repo\s*name|repository\s*name)\s*(?:是|叫|为|:|：)?\s*([A-Za-z0-9_. -]{2,80})/i,
     /(?:叫|名为|名字是|名称是)\s*([A-Za-z][A-Za-z0-9_. -]{2,80})/i,
-    /(?:找到|找一下|搜索一下|搜一下|搜索|搜|研究一下|研究|看看|查一下|查找)\s*([A-Za-z][A-Za-z0-9_. -]{2,80})\s*(?:这个)?(?:github|git hub|开源项目|项目|仓库|repo|repository)/i,
-    /(?:github|git hub|开源项目|项目|仓库|repo|repository)\s*(?:里|上|中)?\s*(?:找到|找一下|搜索一下|搜一下|搜索|搜|研究一下|研究|看看|查一下|查找)?\s*([A-Za-z][A-Za-z0-9_. -]{2,80})/i
+    /(?:找到|找一下|找|搜索一下|搜一下|搜索|搜|研究一下|研究|看看|查一下|查找)\s*([A-Za-z][A-Za-z0-9_. -]{2,80})\s*(?:这个)?(?:github|git hub|开源项目|项目|仓库|repo|repository)/i,
+    /(?:github|git hub|开源项目|项目|仓库|repo|repository)\s*(?:里|上|中)?\s*(?:找到|找一下|找|搜索一下|搜一下|搜索|搜|研究一下|研究|看看|查一下|查找)?\s*([A-Za-z][A-Za-z0-9_. -]{2,80})/i
   ];
   for (const pattern of patterns) {
     const match = input.match(pattern);

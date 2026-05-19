@@ -317,6 +317,7 @@ export class IngestService {
     const notes = buildNotes(stored);
     const plan = await this.vault.planNotes(notes);
     notes.forEach((note, index) => {
+      note.relativePath = plan[index]?.path ?? note.relativePath;
       note.operation = plan[index]?.operation ?? note.operation;
       note.reason = plan[index]?.reason ?? note.reason;
       note.confidence = plan[index]?.confidence ?? note.confidence;

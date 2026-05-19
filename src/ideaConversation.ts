@@ -13,6 +13,7 @@ interface IdeaTurn {
 }
 
 interface IdeaSession {
+  sessionId: string;
   key: string;
   source: AgentMessageRequest["source"];
   senderId: string;
@@ -33,13 +34,14 @@ export class IdeaConversationService {
   ) {}
 
   hasOpenSession(request: AgentMessageRequest): boolean {
-    return this.sessions.has(sessionKey(request));
+    if (this.sessions.has(sessionKey(request))) return true;
+    return this.repo.getOpenConversationSession(request.source, request.senderId, request.chatId)?.mode === "discussing_idea";
   }
 
   async handle(request: AgentMessageRequest): Promise<AgentMessageResponse | undefined> {
-    if (!isIdeaConversationCandidate(request.text, this.sessions.has(sessionKey(request)))) return undefined;
+    if (!isIdeaConversationCandidate(request.text, this.hasOpenSession(request))) return undefined;
     const session = this.sessionFor(request);
-    appendTurn(session, "user", request.text);
+    this.appendAndPersistTurn(session, "user", request.text);
     const shouldSaveHint = hasIdeaSaveSignal(request.text);
     const result = await this.develop(session, shouldSaveHint);
 
@@ -59,6 +61,7 @@ export class IdeaConversationService {
       });
       session.savedAt = nowIso();
       this.sessions.delete(session.key);
+      this.repo.closeConversationSession(session.sessionId);
       return {
         ok: true,
         action: "idea_saved",
@@ -68,7 +71,7 @@ export class IdeaConversationService {
       };
     }
 
-    appendTurn(session, "assistant", result.reply);
+    this.appendAndPersistTurn(session, "assistant", result.reply);
     return {
       ok: true,
       action: "chat_reply",
@@ -86,18 +89,46 @@ export class IdeaConversationService {
       existing.updatedAt = nowIso();
       return existing;
     }
+    const persisted = this.repo.getOpenConversationSession(request.source, request.senderId, request.chatId)
+      ?? this.repo.upsertConversationSession({
+        source: request.source,
+        senderId: request.senderId,
+        chatId: request.chatId,
+        mode: "discussing_idea",
+        topic: request.text.slice(0, 40)
+      });
+    const persistedTurns = this.repo.listConversationTurns(persisted.id)
+      .filter((turn) => turn.role === "user" || turn.role === "assistant")
+      .map((turn) => ({
+        role: turn.role as IdeaTurn["role"],
+        content: turn.text,
+        at: turn.createdAt
+      }));
     const now = nowIso();
     const session: IdeaSession = {
+      sessionId: persisted.id,
       key,
       source: request.source,
       senderId: request.senderId,
       chatId: request.chatId,
-      turns: [],
-      startedAt: now,
-      updatedAt: now
+      turns: persistedTurns.slice(-12),
+      startedAt: persisted.createdAt || now,
+      updatedAt: persisted.updatedAt || now
     };
     this.sessions.set(key, session);
     return session;
+  }
+
+  private appendAndPersistTurn(session: IdeaSession, role: IdeaTurn["role"], content: string): void {
+    const clean = content.trim();
+    if (!clean) return;
+    const persistedTurns = this.repo.listConversationTurns(session.sessionId);
+    const lastPersisted = persistedTurns[persistedTurns.length - 1];
+    const lastMemory = session.turns[session.turns.length - 1];
+    if (lastMemory?.role !== role || lastMemory.content !== clean) appendTurn(session, role, clean);
+    if (lastPersisted?.role !== role || lastPersisted.text !== clean) {
+      this.repo.addConversationTurn({ sessionId: session.sessionId, role, text: clean });
+    }
   }
 
   private async develop(session: IdeaSession, shouldSaveHint: boolean): Promise<IdeaConversationResult> {

@@ -91,7 +91,7 @@ describe("buildNotes", () => {
 
     expect(notes.map((note) => note.type)).toEqual(["project"]);
     expect(notes[0].title).toBe("langgraph - 状态化智能体工作流");
-    expect(notes[0].relativePath).toBe("1_项目/0_开源项目/langchain-ai-langgraph.md");
+    expect(notes[0].relativePath).toBe("1_项目/0_开源项目/langgraph-状态化智能体工作流.md");
     expect(notes[0].content).toContain("## 与我的知识库可能怎么联动");
     expect(notes[0].content).toContain("知识入口智能体编排台");
     expect(notes[0].content).toContain("source_authors:");

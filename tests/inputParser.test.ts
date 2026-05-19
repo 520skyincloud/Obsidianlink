@@ -40,5 +40,6 @@ describe("parseInput", () => {
     expect(parseInput("去 GitHub 帮我找到 LangGraph 这个项目").candidateQuery).toBe("LangGraph");
     expect(parseInput("帮我搜一下 github 上的 CopilotKit 仓库").candidateQuery).toBe("CopilotKit");
     expect(parseInput("项目名叫 Agent Reach，去 github 研究一下").candidateQuery).toBe("Agent Reach");
+    expect(parseInput("去 GitHub 找 MinerU 这个项目").candidateQuery).toBe("MinerU");
   });
 });

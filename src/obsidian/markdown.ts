@@ -19,7 +19,7 @@ export const vaultDirs = fullVaultDirs;
 export function buildNotes(preview: StoredPreview): GeneratedNote[] {
   const notes: GeneratedNote[] = [];
   const created = nowIso();
-  for (const repo of preview.githubRepos) {
+  for (const repo of preview.githubRepos.slice(0, 1)) {
     notes.push(buildProjectNote(preview, repo, created));
   }
   if (notes.length > 0) return notes;
@@ -225,7 +225,7 @@ function buildProjectNote(preview: StoredPreview, repo: GitHubRepo, created: str
   const tags = yamlList(["github-project", ...repo.topics.slice(0, 8)]);
   const sourceUrls = yamlList([repo.htmlUrl, ...preview.parsedInput.urls]);
   const aliases = yamlList(uniqueStrings([title, repo.fullName, repo.fullName.split("/")[1]]));
-  const relativePath = `${projectRepoDir}/${slugify(repo.fullName)}.md`;
+  const relativePath = `${projectRepoDir}/${slugify(title)}.md`;
   const domains = inferDomains(`${repo.fullName} ${repo.description ?? ""} ${repo.topics.join(" ")} ${preview.summary}`);
   const projectName = repo.fullName.split("/")[1];
   const evidence = detected?.evidence ?? [];

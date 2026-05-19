@@ -30,18 +30,20 @@ export class ObsidianVault {
     await this.ensureStructure();
     const written: string[] = [];
     for (const note of notes) {
-      const absolutePath = resolveVaultPath(note.relativePath);
+      const relativePath = await resolveEffectiveNotePath(note);
+      const effectiveNote = relativePath === note.relativePath ? note : { ...note, relativePath };
+      const absolutePath = resolveVaultPath(relativePath);
       await fs.mkdir(path.dirname(absolutePath), { recursive: true });
       const exists = await fileExists(absolutePath);
-      const operation = note.operation ?? (exists ? inferExistingOperation(note.type) : "create");
+      const operation = effectiveNote.operation ?? (exists ? inferExistingOperation(effectiveNote.type) : "create");
       if (!exists || operation === "create") {
-        await fs.writeFile(absolutePath, note.content, "utf8");
+        await fs.writeFile(absolutePath, effectiveNote.content, "utf8");
       } else if (operation === "update_frontmatter") {
-        await fs.writeFile(absolutePath, await mergeByAppendingDiscovery(absolutePath, note), "utf8");
+        await fs.writeFile(absolutePath, await mergeByAppendingDiscovery(absolutePath, effectiveNote), "utf8");
       } else if (operation === "append_section" || operation === "merge_content") {
         const current = await fs.readFile(absolutePath, "utf8");
-        if (!current.includes(discoveryMarker(note))) {
-          await fs.appendFile(absolutePath, appendDiscoverySection(note), "utf8");
+        if (!current.includes(discoveryMarker(effectiveNote))) {
+          await fs.appendFile(absolutePath, appendDiscoverySection(effectiveNote), "utf8");
         }
       }
       written.push(absolutePath);
@@ -52,12 +54,13 @@ export class ObsidianVault {
   async planNotes(notes: GeneratedNote[]): Promise<NotePreview[]> {
     const previews: NotePreview[] = [];
     for (const note of notes) {
-      const absolutePath = resolveVaultPath(note.relativePath);
+      const relativePath = await resolveEffectiveNotePath(note);
+      const absolutePath = resolveVaultPath(relativePath);
       const exists = await fileExists(absolutePath);
       const operation = note.operation ?? (exists ? inferExistingOperation(note.type) : "create");
       previews.push({
         title: note.title,
-        path: note.relativePath,
+        path: relativePath,
         type: note.type,
         operation,
         reason: note.reason ?? operationReason(operation, exists),
@@ -129,6 +132,30 @@ export class ObsidianVault {
       brokenLinks
     };
   }
+}
+
+async function resolveEffectiveNotePath(note: GeneratedNote): Promise<string> {
+  if (note.type !== "project" || !note.githubRepo) return note.relativePath;
+  return (await findExistingProjectByGithubRepo(note.githubRepo)) ?? note.relativePath;
+}
+
+async function findExistingProjectByGithubRepo(githubRepo: string): Promise<string | undefined> {
+  const root = resolveVaultPath();
+  const files = await listMarkdownFiles(root);
+  const expected = githubRepo.trim().toLowerCase();
+  for (const absoluteFile of files) {
+    const content = await fs.readFile(absoluteFile, "utf8").catch(() => "");
+    const repo = readFrontmatterGithubRepo(content);
+    if (repo?.toLowerCase() === expected) return normalizeVaultPath(path.relative(root, absoluteFile));
+  }
+  return undefined;
+}
+
+function readFrontmatterGithubRepo(content: string): string | undefined {
+  const frontmatter = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!frontmatter) return undefined;
+  const match = frontmatter[1].match(/^github_repo:\s*["']?([^"'\n]+)["']?\s*$/m);
+  return match?.[1]?.trim();
 }
 
 async function listMarkdownFiles(root: string): Promise<string[]> {
