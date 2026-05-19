@@ -62,6 +62,8 @@ export class IngestService {
       hasOpenIdeaSession,
       hasPendingPreview: Boolean(this.findPendingPreview(request.source, request.senderId))
     });
+    const previewAction = await this.handlePreviewTextAction(request);
+    if (previewAction) return previewAction;
     if (routed.shouldUseIdeaConversation) {
       const incoming = this.repo.createIncomingMessage({
         source: request.source,
@@ -86,10 +88,13 @@ export class IngestService {
         return ideaResponse;
       }
     }
-    const previewAction = await this.handlePreviewTextAction(request);
-    if (previewAction) return previewAction;
     if (routed.intent.intent === "casual_chat" || routed.intent.intent === "help" || routed.intent.intent === "status" || routed.intent.intent === "knowledge_question") {
-      const reply = routed.reply?.trim() || (await this.handleAgentMessage(request)).reply;
+      const reply =
+        routed.intent.intent === "status"
+          ? this.buildStatusReply()
+          : routed.intent.intent === "knowledge_question"
+            ? this.buildKnowledgeQuestionReply(request.text)
+            : routed.reply?.trim() || (await this.handleAgentMessage(request)).reply;
       return {
         ok: true,
         action: "chat_reply",
@@ -405,6 +410,45 @@ export class IngestService {
     });
   }
 
+  private buildStatusReply(): string {
+    const jobs = this.repo.listJobs(20);
+    const pending = this.repo.listPreviews(20, "pending");
+    const failed = jobs.filter((job) => job.status === "failed");
+    const running = jobs.filter((job) => job.status === "queued" || job.status === "running");
+    const latest = jobs[0];
+    return [
+      "当前状态：",
+      `- 待处理/运行中：${running.length}`,
+      `- 待确认预览：${pending.length}`,
+      `- 最近失败：${failed.length}`,
+      latest ? `- 最新任务：${latest.id} / ${latest.status}${latest.currentNode ? ` / ${latest.currentNode}` : ""}` : "- 最新任务：暂无"
+    ].join("\n");
+  }
+
+  private buildKnowledgeQuestionReply(text: string): string {
+    const query = extractKnowledgeQuery(text);
+    const candidates = this.repo.listVaultFiles(200)
+      .map((file) => ({
+        file,
+        score: knowledgeMatchScore(query, `${file.title} ${file.path} ${file.githubRepo ?? ""} ${(file.entities ?? []).join(" ")} ${(file.domains ?? []).join(" ")}`)
+      }))
+      .filter((item) => item.score > 0)
+      .sort((left, right) => right.score - left.score || left.file.updatedAt.localeCompare(right.file.updatedAt))
+      .slice(0, 5);
+    if (!candidates.length) {
+      return [
+        "我查了当前索引，暂时没有找到明显匹配的 Obsidian 笔记。",
+        `检索词：${query || text.trim()}`,
+        "你可以补充项目名、关键词，或直接发链接让我重新研究。"
+      ].join("\n");
+    }
+    return [
+      "我在知识库索引里找到这些相关内容：",
+      ...candidates.map((item, index) => `${index + 1}. ${item.file.title}\n   ${item.file.path}`),
+      "需要我继续展开某一条的话，直接说标题或序号。"
+    ].join("\n");
+  }
+
   dbPreviews(limit = 50, status?: string) {
     return this.repo.listPreviews(limit, status);
   }
@@ -715,6 +759,28 @@ function formatConfirmReply(result: ConfirmResult): string {
     ].filter(Boolean).join("\n");
   }
   return [`已写入 Obsidian。`, `写入：${result.writtenFiles.length} 个文件`].join("\n");
+}
+
+function extractKnowledgeQuery(text: string): string {
+  return text
+    .replace(/知识库里|知识库|Obsidian|obsidian|有没有|是否有|查一下|帮我查|总结一下|回忆一下|我之前|之前|存过|记录过|相关|笔记|项目|想法|[？?]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function knowledgeMatchScore(query: string, haystack: string): number {
+  const cleanQuery = query.trim().toLowerCase();
+  const cleanHaystack = haystack.toLowerCase();
+  if (!cleanQuery) return 0;
+  if (cleanHaystack.includes(cleanQuery)) return 100 + cleanQuery.length;
+  const tokens = cleanQuery
+    .split(/[\s,，。:：/\\_-]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2);
+  const tokenScore = tokens.filter((token) => cleanHaystack.includes(token)).length * 20;
+  const chineseChars = [...new Set([...cleanQuery].filter((char) => /[\u3400-\u9fff]/.test(char)))];
+  const charScore = chineseChars.filter((char) => cleanHaystack.includes(char)).length;
+  return tokenScore + charScore;
 }
 
 function nodeLabel(nodeName: string): string {

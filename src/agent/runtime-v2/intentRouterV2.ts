@@ -15,9 +15,13 @@ export function classifyAgentIntentV2(text: string, context: IntentRouterV2Conte
   });
   let intent: AgentIntentV2Kind = "unknown";
   let reason = base.reason;
+  const knowledgeQuestion = looksLikeKnowledgeQuestion(clean);
 
   if (base.kind === "source_ingest" && base.reason === "github_project_lookup") {
     intent = "github_project_lookup";
+  } else if (base.kind !== "source_ingest" && knowledgeQuestion) {
+    intent = "knowledge_question";
+    reason = "knowledge_question_keywords";
   } else if (base.kind === "source_ingest" || base.kind === "knowledge_ingest") {
     intent = "source_ingest";
   } else if (base.kind === "idea_chat" && hasIdeaSaveSignal(clean) && (context.hasOpenIdeaSession || context.conversationMode === "discussing_idea")) {
@@ -35,9 +39,6 @@ export function classifyAgentIntentV2(text: string, context: IntentRouterV2Conte
     intent = "help";
   } else if (base.kind === "status") {
     intent = "status";
-  } else if (looksLikeKnowledgeQuestion(clean)) {
-    intent = "knowledge_question";
-    reason = "knowledge_question_keywords";
   } else if (base.kind === "casual_chat") {
     intent = "casual_chat";
   }
