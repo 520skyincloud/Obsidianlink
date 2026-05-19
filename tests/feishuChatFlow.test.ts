@@ -74,7 +74,7 @@ describe("Feishu chat flow", () => {
     }
   });
 
-  it("sends a received ack first, then sends the generated preview decision card for queued source ingest", async () => {
+  it("sends a plain received ack first, then sends the generated preview decision card for queued source ingest", async () => {
     const suffix = uniqueSuffix();
     const preview = makePreview("pv_feishu_queued");
     const service = {
@@ -111,7 +111,7 @@ describe("Feishu chat flow", () => {
       expect((await response.json()).action).toBe("queued");
       await waitFor(() => createMock.mock.calls.length >= 1 && replyMock.mock.calls.length >= 1);
 
-      expectFeishuInteractivePayload(mockCall(createMock, 0), "已收到");
+      expectFeishuDirectTextPayloadContaining(mockCall(createMock, 0), "oc_test", "收到，我先开始解析");
       const replyPayload = expectFeishuInteractivePayload(mockCall(replyMock, 0), "识别完成");
       expect(JSON.stringify(replyPayload)).toContain("只入库");
       expect(JSON.stringify(replyPayload)).toContain("只联想");
@@ -205,22 +205,27 @@ describe("Feishu chat flow", () => {
     };
     const { baseUrl, close } = await startTestServer(service);
     try {
-      const ideate = await postFeishuCard(baseUrl, preview.previewId, "ideate", false);
+      const ideate = await postFeishuCard(baseUrl, preview.previewId, "ideate", true);
       expect(ideate.status).toBe(200);
       const ideateBody = JSON.stringify(await ideate.json());
       expect(ideateBody).toContain("操作完成");
-      expect(ideateBody).toContain("联想分析");
+      expect(ideateBody).toContain("已发送应用想法");
+      expectFeishuDirectTextPayloadContaining(mockLastCall(createMock), "oc_test", "联想分析");
 
       const confirm = await postFeishuCard(baseUrl, preview.previewId, "confirm", false);
       expect(confirm.status).toBe(200);
       expect(JSON.stringify(await confirm.json())).toContain("操作完成");
       expect(service.confirm).toHaveBeenCalledWith(expect.objectContaining({ previewId: preview.previewId, decision: "confirm" }));
 
-      const confirmIdeate = await postFeishuCard(baseUrl, preview.previewId, "confirm_ideate", false);
+      createMock.mockClear();
+      const confirmIdeate = await postFeishuCard(baseUrl, preview.previewId, "confirm_ideate", true);
       expect(confirmIdeate.status).toBe(200);
       const confirmIdeateBody = JSON.stringify(await confirmIdeate.json());
       expect(confirmIdeateBody).toContain("操作完成");
-      expect(confirmIdeateBody).toContain("联想分析");
+      expect(confirmIdeateBody).toContain("已发送应用想法");
+      expect(createMock).toHaveBeenCalledTimes(2);
+      expectFeishuDirectTextPayloadContaining(mockCall(createMock, 0), "oc_test", "已入库");
+      expectFeishuDirectTextPayloadContaining(mockCall(createMock, 1), "oc_test", "联想分析");
     } finally {
       await close();
     }
@@ -365,6 +370,16 @@ function expectFeishuDirectTextPayload(callPayload: unknown, expectedChatId: str
   expect(payload.data?.receive_id).toBe(expectedChatId);
   expect(payload.data?.msg_type).toBe("text");
   expect(JSON.parse(String(payload.data?.content ?? "{}"))).toEqual({ text: expectedText });
+}
+
+function expectFeishuDirectTextPayloadContaining(callPayload: unknown, expectedChatId: string, expectedText: string): void {
+  expect(callPayload).toBeTruthy();
+  const payload = callPayload as { params?: { receive_id_type?: string }; data?: { receive_id?: string; msg_type?: string; content?: string } };
+  expect(payload.params?.receive_id_type).toBe("chat_id");
+  expect(payload.data?.receive_id).toBe(expectedChatId);
+  expect(payload.data?.msg_type).toBe("text");
+  const content = JSON.parse(String(payload.data?.content ?? "{}")) as { text?: string };
+  expect(content.text).toContain(expectedText);
 }
 
 function mockCall(mock: typeof replyMock, index: number): unknown {

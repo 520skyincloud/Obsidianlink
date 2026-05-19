@@ -251,25 +251,11 @@ export async function sendFeishuReply(event: unknown, text: string, response?: A
   const eventText = extractFeishuEventText(event);
   const chatId = extractFeishuChatId(event);
   const previewForCard = previewFromResponse(response);
-  if (shouldSendPlainTextReply(response, previewForCard)) {
-    if (chatId) {
-      await client.im.message.create({
-        params: { receive_id_type: "chat_id" },
-        data: {
-          receive_id: chatId,
-          msg_type: "text",
-          content: JSON.stringify({ text })
-        }
-      });
-    } else {
-      await client.im.message.reply({
-        path: { message_id: messageId },
-        data: {
-          msg_type: "text",
-          content: JSON.stringify({ text })
-        }
-      });
-    }
+  const decisionCard = previewForCard && shouldSendDecisionCard(previewForCard, eventText)
+    ? buildPreviewDecisionCard(previewForCard, { chatId })
+    : undefined;
+  if (!decisionCard) {
+    await sendFeishuTextWithClient(client, { chatId, messageId, text });
     repositories.addConnectorLog({
       source: "feishu",
       eventType: "reply",
@@ -279,30 +265,20 @@ export async function sendFeishuReply(event: unknown, text: string, response?: A
     });
     return;
   }
-  const card = previewForCard && shouldSendDecisionCard(previewForCard, eventText)
-    ? buildPreviewDecisionCard(previewForCard, { chatId })
-    : buildTextReplyCard(text, response);
   await client.im.message.reply({
     path: { message_id: messageId },
     data: {
       msg_type: "interactive",
-      content: JSON.stringify(card)
+      content: JSON.stringify(decisionCard)
     }
   });
   repositories.addConnectorLog({
     source: "feishu",
     eventType: "reply",
-      status: "success",
-      message: previewForCard && shouldSendDecisionCard(previewForCard, eventText) ? "已发送飞书交互确认卡片" : "已发送飞书回复卡片",
+    status: "success",
+    message: "已发送飞书交互确认卡片",
     metadata: { messageId, chatId, interactive: true, action: response?.action, previewId: response?.previewId, hasPreview: Boolean(previewForCard), eventText: eventText?.slice(0, 80) }
   });
-}
-
-function shouldSendPlainTextReply(response: AgentMessageResponse | undefined, previewForCard: IngestPreview | undefined): boolean {
-  if (!response || response.action !== "chat_reply") return false;
-  if (previewForCard || response.previewId || response.jobId || response.runId) return false;
-  if (response.warnings?.length) return false;
-  return true;
 }
 
 function previewFromResponse(response?: AgentMessageResponse): IngestPreview | undefined {
@@ -368,12 +344,12 @@ async function handleFeishuCardAction(service: IngestService, data: unknown, opt
   if (action.decision === "ideate") {
     const stored = repositories.getStoredPreview(action.previewId);
     if (stored) {
-      if (options.sendChatReply && action.chatId) await sendFeishuChatCard(action.chatId, buildIdeaResultCard(stored));
+      if (options.sendChatReply && action.chatId) await sendFeishuChatText(action.chatId, formatFeishuIdeas(stored));
       repositories.addConnectorLog({
         source: "feishu",
         eventType: "card_action",
         status: "success",
-        message: `已发送联想分析卡片：${action.previewId}`,
+        message: `已发送联想分析文本：${action.previewId}`,
         metadata: action
       });
       return options.sendChatReply && action.chatId ? `已发送应用想法：${action.previewId}` : formatFeishuIdeas(stored);
@@ -389,8 +365,8 @@ async function handleFeishuCardAction(service: IngestService, data: unknown, opt
     const confirmText = formatFeishuConfirmResult(result, false);
     if (options.sendChatReply && action.chatId) {
       await sendFeishuChatText(action.chatId, confirmText);
-      if (stored) await sendFeishuChatCard(action.chatId, buildIdeaResultCard(stored));
-      text = stored ? "已入库主文件，并已发送应用想法卡片；联想不会写入 Obsidian。" : `${confirmText}\n\n联想分析暂不可用。`;
+      if (stored) await sendFeishuChatText(action.chatId, formatFeishuIdeas(stored));
+      text = stored ? "已入库主文件，并已发送应用想法；联想不会写入 Obsidian。" : `${confirmText}\n\n联想分析暂不可用。`;
       repositories.addConnectorLog({
         source: "feishu",
         eventType: "card_action",
@@ -416,16 +392,13 @@ async function handleFeishuCardAction(service: IngestService, data: unknown, opt
 }
 
 async function sendFeishuChatText(chatId: string, text: string): Promise<void> {
-  await sendFeishuChatCard(chatId, buildTextReplyCard(text));
+  await sendFeishuChatMessage(chatId, "text", { text });
 }
 
 export async function sendFeishuProcessingAck(chatId: string | undefined, jobId?: string): Promise<void> {
   if (!chatId) return;
-  await sendFeishuChatCard(chatId, buildProcessingCard(jobId));
-}
-
-async function sendFeishuChatCard(chatId: string, card: Record<string, unknown>): Promise<void> {
-  await sendFeishuChatMessage(chatId, "interactive", card);
+  const suffix = jobId ? `任务 ${shortId(jobId)}。` : "";
+  await sendFeishuChatText(chatId, `收到，我先开始解析。${suffix}如果判断出需要入库，我会发确认卡片；普通聊天我就直接文字回复。`);
 }
 
 async function sendFeishuChatMessage(chatId: string, msgType: "text" | "interactive", content: Record<string, unknown>): Promise<void> {
@@ -443,6 +416,30 @@ async function sendFeishuChatMessage(chatId: string, msgType: "text" | "interact
   });
 }
 
+async function sendFeishuTextWithClient(
+  client: Awaited<ReturnType<typeof feishuClient>>["client"],
+  params: { chatId?: string; messageId: string; text: string }
+): Promise<void> {
+  if (params.chatId) {
+    await client.im.message.create({
+      params: { receive_id_type: "chat_id" },
+      data: {
+        receive_id: params.chatId,
+        msg_type: "text",
+        content: JSON.stringify({ text: params.text })
+      }
+    });
+    return;
+  }
+  await client.im.message.reply({
+    path: { message_id: params.messageId },
+    data: {
+      msg_type: "text",
+      content: JSON.stringify({ text: params.text })
+    }
+  });
+}
+
 async function feishuClient(appId: string, appSecret: string) {
   const lark = (await import("@larksuiteoapi/node-sdk")) as unknown as {
     Client: new (params: { appId: string; appSecret: string; loggerLevel?: unknown }) => {
@@ -456,84 +453,6 @@ async function feishuClient(appId: string, appSecret: string) {
     LoggerLevel?: Record<string, unknown>;
   };
   return { client: new lark.Client({ appId, appSecret, loggerLevel: lark.LoggerLevel?.info }) };
-}
-
-function buildProcessingCard(jobId?: string) {
-  return {
-    config: { wide_screen_mode: true },
-    header: {
-      template: "blue",
-      title: { tag: "plain_text", content: "已收到" }
-    },
-    elements: [
-      {
-        tag: "div",
-        text: {
-          tag: "lark_md",
-          content: `${tagText("进入队列", "blue")}\n我已经收到这条消息，会自动判断它是闲聊、想法、抖音内容、GitHub 项目还是普通知识。`
-        }
-      },
-      {
-        tag: "column_set",
-        flex_mode: "none",
-        background_style: "grey",
-        columns: [
-          cardColumn("当前", "解析输入"),
-          cardColumn("后续", "需要入库时会给你确认卡片")
-        ]
-      },
-      {
-        tag: "note",
-        elements: [{ tag: "plain_text", content: jobId ? `任务 ${shortId(jobId)} · 处理完成后会继续回复` : "我先接住消息，处理完会继续回复。" }]
-      }
-    ]
-  };
-}
-
-function buildTextReplyCard(text: string, response?: AgentMessageResponse): Record<string, unknown> {
-  const tone = responseTone(response);
-  const title = responseTitle(response);
-  const sections = splitReplySections(text);
-  const summary = sections[0] ?? "我在。";
-  const details = sections.slice(1, 4);
-  return {
-    config: { wide_screen_mode: true },
-    header: {
-      template: tone,
-      title: { tag: "plain_text", content: title }
-    },
-    elements: [
-      {
-        tag: "div",
-        text: {
-          tag: "lark_md",
-          content: `${tagText(responseTag(response), tone)}\n${formatCardParagraph(summary, 520)}`
-        }
-      },
-      ...details.map((item) => ({
-        tag: "div",
-        text: {
-          tag: "lark_md",
-          content: formatCardParagraph(item, 520)
-        }
-      })),
-      ...(response?.warnings?.length
-        ? [
-            {
-              tag: "note",
-              elements: [{ tag: "plain_text", content: `注意：${response.warnings.slice(0, 2).map((item) => truncateCardText(item, 72)).join("；")}` }]
-            }
-          ]
-        : []),
-      {
-        tag: "hr"
-      },
-      {
-        tag: "note",
-        elements: [{ tag: "plain_text", content: responseFooter(response) }]
-      }
-    ]
-  };
 }
 
 function buildPreviewDecisionCard(preview: IngestPreview, context: { chatId?: string } = {}) {
@@ -639,30 +558,6 @@ function buildActionButton(label: string, decision: string, previewId: string, c
   };
 }
 
-function buildIdeaResultCard(stored: StoredPreview) {
-  return {
-    config: { wide_screen_mode: true },
-    header: {
-      template: "purple",
-      title: { tag: "plain_text", content: "应用想法" }
-    },
-    elements: [
-      {
-        tag: "div",
-        text: { tag: "lark_md", content: `**基于对象**\n${truncateCardText(formatStoredTarget(stored), 180)}` }
-      },
-      {
-        tag: "div",
-        text: { tag: "lark_md", content: formatIdeaDetails(stored) }
-      },
-      {
-        tag: "note",
-        elements: [{ tag: "plain_text", content: `来源预览 ${shortId(stored.previewId)}` }]
-      }
-    ]
-  };
-}
-
 function isKnowledgePreview(preview: Pick<IngestPreview, "detectedProjects" | "knowledge">): boolean {
   return preview.detectedProjects.length === 0 && preview.knowledge.length > 0;
 }
@@ -723,74 +618,6 @@ function tagText(label: string, tone: string): string {
   return `**${prefix}｜${label}**`;
 }
 
-function responseTone(response?: AgentMessageResponse): "blue" | "green" | "yellow" | "red" | "purple" {
-  if (!response) return "blue";
-  if (!response.ok || response.action === "error") return "red";
-  if (response.action === "confirmed" || response.action === "idea_saved") return "green";
-  if (response.action === "cancelled") return "yellow";
-  if (response.action === "regenerated" || response.action === "preview_generated") return "blue";
-  if (response.action === "ignored") return "purple";
-  return "blue";
-}
-
-function responseTitle(response?: AgentMessageResponse): string {
-  if (!response) return "ObsidianLink";
-  const titles: Record<string, string> = {
-    queued: "已收到",
-    preview_generated: "识别完成",
-    confirmed: "已入库",
-    idea_saved: "已入库",
-    cancelled: "已取消",
-    regenerated: "已重新生成",
-    ignored: "我在",
-    error: "处理失败"
-  };
-  return titles[response.action] ?? "ObsidianLink";
-}
-
-function responseTag(response?: AgentMessageResponse): string {
-  if (!response) return "回复";
-  const tags: Record<string, string> = {
-    queued: "处理中",
-    preview_generated: "待确认",
-    confirmed: "写入完成",
-    idea_saved: "写入完成",
-    cancelled: "已取消",
-    regenerated: "新预览",
-    ignored: "轻量回复",
-    error: "失败"
-  };
-  return tags[response.action] ?? "回复";
-}
-
-function responseFooter(response?: AgentMessageResponse): string {
-  if (!response) return "继续发我抖音链接、GitHub 链接、网页或一个想法。";
-  if (response.previewId) return `预览 ${shortId(response.previewId)} · 不确认不会写入 Obsidian`;
-  if (response.jobId) return `任务 ${shortId(response.jobId)} · ObsidianLink`;
-  return "继续发我抖音链接、GitHub 链接、网页或一个想法。";
-}
-
-function splitReplySections(text: string): string[] {
-  const normalized = text
-    .replace(/\r\n/g, "\n")
-    .split(/\n{2,}/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-  if (normalized.length) return normalized;
-  return text
-    .split("\n")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function formatCardParagraph(text: string, max: number): string {
-  return truncateCardText(text.trim(), max)
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join("\n");
-}
-
 function cardColumn(title: string, value: string): Record<string, unknown> {
   return {
     tag: "column",
@@ -837,13 +664,6 @@ function formatDetectedTarget(preview: IngestPreview): string {
   return "未稳定识别，需要补充项目名、链接或关键上下文。";
 }
 
-function formatStoredTarget(stored: StoredPreview): string {
-  if (stored.githubRepos.length) return stored.githubRepos.map((repo) => repo.fullName).join("、");
-  if (stored.detectedProjects.length) return stored.detectedProjects.map((item) => item.githubRepo ?? item.name).join("、");
-  if (stored.knowledge.length) return stored.knowledge.map((item) => item.title).slice(0, 3).join("、");
-  return "本次输入内容";
-}
-
 function formatConfidence(preview: IngestPreview): string {
   const values = preview.detectedProjects.map((item) => item.confidence).filter((item) => Number.isFinite(item));
   if (!values.length) return preview.warnings.length ? "中，需要人工确认" : "中";
@@ -879,22 +699,6 @@ function formatIdeaTeaser(preview: IngestPreview): string {
     .slice(0, 3)
     .map((idea) => `- ${truncateCardText(idea.title, 28)}：${truncateCardText(idea.productConcept || idea.minimalExperiment, 72)}`)
     .join("\n");
-}
-
-function formatIdeaDetails(stored: StoredPreview): string {
-  if (!stored.ideas.length) return "**没有生成联想方向**\n可以补充你的目标、预算、硬件条件或想服务的人群后重新生成。";
-  return stored.ideas
-    .slice(0, 5)
-    .map((idea, index) =>
-      [
-        `**${index + 1}. ${idea.title}**`,
-        `产品设想：${truncateCardText(idea.productConcept, 240)}`,
-        `适用场景：${truncateCardText(idea.userScenario, 220)}`,
-        `最小实验：${truncateCardText(idea.minimalExperiment, 220)}`,
-        `下一步：${truncateCardText(idea.nextAction, 180)}`
-      ].join("\n")
-    )
-    .join("\n\n");
 }
 
 function noteTypeLabel(type: string): string {
