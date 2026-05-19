@@ -22,7 +22,7 @@
 | 参数 | 必填 | 说明 | 示例 |
 |---|---:|---|---|
 | `OBSIDIAN_VAULT_PATH` | 是 | 用户本机 Obsidian Vault 的绝对路径。 | `/Users/sky/Documents/obsidian/sky` |
-| `OPENAI_BASE_URL` | 是 | OpenAI 兼容接口地址，必须到 `/v1`。 | `http://43.128.146.66:8317/v1` |
+| `OPENAI_BASE_URL` | 是 | OpenAI 兼容接口地址，必须到 `/v1`。 | `http://your-openai-compatible-host/v1` |
 | `OPENAI_API_KEY` | 是 | 模型接口密钥。 | `sk-...` |
 | `OPENAI_MODEL` | 是 | 模型名。 | `gpt-5.5` |
 | `GITHUB_TOKEN` | 是 | GitHub Personal Access Token。 | `ghp_...` |
