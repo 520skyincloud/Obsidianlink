@@ -1,5 +1,221 @@
 # ObsidianLink
 
+## 给 AI 看的：一键部署 SOP
+
+如果你是 Cursor、Codex、Claude Code、Gemini CLI 或其他 AI 编程助手，请优先按本节执行。目标是把 ObsidianLink 部署成本机常驻的飞书知识库智能体，并让普通用户只需要在飞书里聊天。
+
+### AI 执行原则
+
+```text
+不要猜密钥。
+不要把密钥写进 README、日志、截图或提交。
+不要把 .env 提交到 Git。
+不要默认启用 HTTP 公网回调。
+飞书主链路优先使用长连接。
+部署完成后必须真实运行 health、connector、飞书长连接状态检查。
+```
+
+### AI 需要向用户确认的参数
+
+部署前，先向用户要这些信息。没有拿到就不要假装部署完成。
+
+| 参数 | 必填 | 说明 | 示例 |
+|---|---:|---|---|
+| `OBSIDIAN_VAULT_PATH` | 是 | 用户本机 Obsidian Vault 的绝对路径。 | `/Users/sky/Documents/obsidian/sky` |
+| `OPENAI_BASE_URL` | 是 | OpenAI 兼容接口地址，必须到 `/v1`。 | `http://43.128.146.66:8317/v1` |
+| `OPENAI_API_KEY` | 是 | 模型接口密钥。 | `sk-...` |
+| `OPENAI_MODEL` | 是 | 模型名。 | `gpt-5.5` |
+| `GITHUB_TOKEN` | 是 | GitHub Personal Access Token。 | `ghp_...` |
+| `FEISHU_APP_ID` | 飞书必填 | 飞书企业自建应用 App ID。 | `cli_xxx` |
+| `FEISHU_APP_SECRET` | 飞书必填 | 飞书应用 App Secret。 | `xxx` |
+| `FEISHU_VERIFICATION_TOKEN` | 飞书建议填 | 飞书事件订阅 Verification Token。 | `xxx` |
+| `FEISHU_ENCRYPT_KEY` | 可选 | 飞书事件加密 Encrypt Key；没开加密可留空。 | `xxx` |
+| `DOUYIN_PARSE_API` | 建议填 | 抖音解析接口。 | `https://api.bugpk.com/api/douyin?url=` |
+
+用户不知道的参数，不要瞎填。你可以告诉用户：
+
+```text
+GitHub Token 在 GitHub -> Settings -> Developer settings -> Personal access tokens 获取。
+飞书 App ID/App Secret 在飞书开放平台的企业自建应用凭证页获取。
+Verification Token / Encrypt Key 在飞书开放平台“事件与回调”页获取。
+```
+
+### AI 一键部署步骤
+
+在用户本机执行：
+
+```bash
+git clone https://github.com/520skyincloud/Obsidianlink.git
+cd Obsidianlink
+npm install
+cp .env.example .env
+```
+
+如果是 macOS，并且用户需要抖音视频/图文 OCR：
+
+```bash
+brew install ffmpeg tesseract tesseract-lang
+```
+
+然后写入 `.env`。推荐使用脚本方式更新，避免手改漏字段：
+
+```bash
+node - <<'NODE'
+const fs = require("fs");
+const path = ".env";
+const current = fs.existsSync(path) ? fs.readFileSync(path, "utf8") : "";
+const updates = {
+  PORT: "38721",
+  OBSIDIANLINK_DB_PATH: "./data/obsidianlink.sqlite",
+  OBSIDIAN_VAULT_PATH: "替换为用户的 Vault 绝对路径",
+  OPENAI_BASE_URL: "替换为模型 /v1 地址",
+  OPENAI_API_KEY: "替换为模型密钥",
+  OPENAI_MODEL: "替换为模型名",
+  GITHUB_TOKEN: "替换为 GitHub Token",
+  DOUYIN_PARSE_API: "https://api.bugpk.com/api/douyin?url=",
+  OCR_FRAME_INTERVAL_SECONDS: "4",
+  OCR_MAX_FRAMES: "8",
+  OCR_MAX_VIDEO_BYTES: "83886080",
+  FEISHU_APP_ID: "替换为飞书 App ID",
+  FEISHU_APP_SECRET: "替换为飞书 App Secret",
+  FEISHU_VERIFICATION_TOKEN: "替换为飞书 Verification Token",
+  FEISHU_ENCRYPT_KEY: "如果没开飞书事件加密就留空",
+  FEISHU_LONG_CONNECTION_ENABLED: "true",
+  FEISHU_CARD_CALLBACK_ENABLED: "true",
+  CONNECTOR_PUBLIC_BASE_URL: "http://127.0.0.1:38721"
+};
+
+const lines = current.split(/\r?\n/).filter(Boolean);
+const seen = new Set();
+const next = lines.map((line) => {
+  const key = line.split("=")[0];
+  if (!(key in updates)) return line;
+  seen.add(key);
+  return `${key}=${updates[key]}`;
+});
+for (const [key, value] of Object.entries(updates)) {
+  if (!seen.has(key)) next.push(`${key}=${value}`);
+}
+fs.writeFileSync(path, `${next.join("\n")}\n`);
+NODE
+```
+
+注意：上面的 `替换为...` 必须换成真实值。不要把占位符留在 `.env` 里。
+
+### 飞书后台必须这样设置
+
+AI 不一定能代替用户登录飞书后台，但必须指导用户完成：
+
+```text
+1. 飞书开放平台创建企业自建应用。
+2. 开启机器人能力。
+3. 安装应用到当前企业。
+4. 把机器人加入单聊或群聊。
+5. 在“事件与回调”里选择“使用长连接接收事件/回调”。
+6. 订阅 im.message.receive_v1。
+7. 订阅 card.action.trigger。
+8. 如果开启事件加密，把 Encrypt Key 填进 .env。
+9. 开通发送消息、接收消息相关权限。
+10. 发布应用。
+```
+
+本项目飞书主链路使用长连接，所以：
+
+```text
+不需要 FRP。
+不需要公网域名。
+不需要把 127.0.0.1 填到飞书回调地址。
+HTTP webhook 只是备用模式，不要和长连接同时接收同一类事件。
+```
+
+### 启动和验证
+
+构建并启动：
+
+```bash
+npm run build
+npm run service:restart
+```
+
+检查本机服务：
+
+```bash
+npm run service:status
+curl -s http://127.0.0.1:38721/api/system/health
+```
+
+检查飞书长连接：
+
+```bash
+curl -s http://127.0.0.1:38721/api/connectors | node -e '
+let s="";
+process.stdin.on("data", d => s += d);
+process.stdin.on("end", () => {
+  const j = JSON.parse(s);
+  const f = j.connectors.find(c => c.source === "feishu");
+  console.log(JSON.stringify({
+    configured: f?.setupStatus?.configured,
+    enabled: f?.enabled,
+    longConnection: f?.longConnection,
+    notes: f?.setupStatus?.notes
+  }, null, 2));
+});
+'
+```
+
+成功状态应包含：
+
+```text
+"enabled": true
+"running": true
+"飞书长连接已连接，正在接收事件。"
+```
+
+### 部署后让用户这样测试
+
+让用户在飞书里按顺序发送：
+
+```text
+你好
+```
+
+预期：普通文本回复，不发卡片，不入库。
+
+```text
+去 GitHub 找 LangGraph 这个项目
+```
+
+预期：先普通文本提示收到，处理完成后发项目预览卡。
+
+```text
+我有个开发想法，想做一个自动整理抖音技术视频的知识库助手
+```
+
+预期：普通聊天澄清，不直接写入 Obsidian。
+
+```text
+保存刚才这个
+```
+
+预期：把刚才那轮想法整理成一张想法卡，写入 Obsidian。
+
+### AI 验收标准
+
+部署完成前，至少确认这些结果：
+
+```text
+npm run build 通过
+npm run service:status 显示 Health ok
+/api/system/health 显示 vault writable、database ok、model configured
+/api/connectors 显示 feishu.longConnection.running=true
+飞书发送“你好”不会出卡片
+飞书发送 GitHub 项目名会生成预览卡
+点击预览卡按钮后能收到文本结果
+Obsidian Vault 内确实出现对应 Markdown 文件
+```
+
+如果任何一步失败，先看 `data/obsidianlink.log`，不要继续声称部署成功。
+
 ObsidianLink 是一个以飞书机器人为入口的本地 Obsidian 知识库智能体。你在飞书里发抖音链接、GitHub 链接、网页文章、项目名或开发想法，它会自动判断意图、解析内容、研究项目、生成入库预览；你点确认后，它才写入本地 Obsidian Vault。
 
 它不是一个云端笔记应用，而是一套“聊天入口 + LangGraph 智能体 + 本地 Obsidian”的自动化工作流。
