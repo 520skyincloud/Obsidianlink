@@ -66,9 +66,9 @@ describe("Feishu chat flow", () => {
         expect.objectContaining({ text: "你好", source: "feishu", senderId: "ou_test", chatId: "oc_test", messageId: `om_hi_${suffix}` }),
         expect.any(Function)
       );
-      expect(createMock).not.toHaveBeenCalled();
-      expect(replyMock).toHaveBeenCalledTimes(1);
-      expectFeishuTextPayload(mockCall(replyMock, 0), "我在。发我抖音链接、GitHub 链接、网页或一个想法都可以。");
+      expect(replyMock).not.toHaveBeenCalled();
+      expect(createMock).toHaveBeenCalledTimes(1);
+      expectFeishuDirectTextPayload(mockCall(createMock, 0), "oc_test", "我在。发我抖音链接、GitHub 链接、网页或一个想法都可以。");
     } finally {
       await close();
     }
@@ -356,6 +356,15 @@ function expectFeishuTextPayload(callPayload: unknown, expectedText: string): vo
   const data = (callPayload as { data?: { msg_type?: string; content?: string } }).data;
   expect(data?.msg_type).toBe("text");
   expect(JSON.parse(String(data?.content ?? "{}"))).toEqual({ text: expectedText });
+}
+
+function expectFeishuDirectTextPayload(callPayload: unknown, expectedChatId: string, expectedText: string): void {
+  expect(callPayload).toBeTruthy();
+  const payload = callPayload as { params?: { receive_id_type?: string }; data?: { receive_id?: string; msg_type?: string; content?: string } };
+  expect(payload.params?.receive_id_type).toBe("chat_id");
+  expect(payload.data?.receive_id).toBe(expectedChatId);
+  expect(payload.data?.msg_type).toBe("text");
+  expect(JSON.parse(String(payload.data?.content ?? "{}"))).toEqual({ text: expectedText });
 }
 
 function mockCall(mock: typeof replyMock, index: number): unknown {

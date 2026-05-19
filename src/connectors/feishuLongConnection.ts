@@ -252,19 +252,30 @@ export async function sendFeishuReply(event: unknown, text: string, response?: A
   const chatId = extractFeishuChatId(event);
   const previewForCard = previewFromResponse(response);
   if (shouldSendPlainTextReply(response, previewForCard)) {
-    await client.im.message.reply({
-      path: { message_id: messageId },
-      data: {
-        msg_type: "text",
-        content: JSON.stringify({ text })
-      }
-    });
+    if (chatId) {
+      await client.im.message.create({
+        params: { receive_id_type: "chat_id" },
+        data: {
+          receive_id: chatId,
+          msg_type: "text",
+          content: JSON.stringify({ text })
+        }
+      });
+    } else {
+      await client.im.message.reply({
+        path: { message_id: messageId },
+        data: {
+          msg_type: "text",
+          content: JSON.stringify({ text })
+        }
+      });
+    }
     repositories.addConnectorLog({
       source: "feishu",
       eventType: "reply",
       status: "success",
       message: "已发送飞书普通文本回复",
-      metadata: { messageId, chatId, interactive: false, action: response?.action, eventText: eventText?.slice(0, 80) }
+      metadata: { messageId, chatId, interactive: false, directChat: Boolean(chatId), action: response?.action, eventText: eventText?.slice(0, 80) }
     });
     return;
   }
