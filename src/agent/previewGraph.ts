@@ -680,8 +680,9 @@ function isPathLikeMatch(text: string, match: RegExpMatchArray): boolean {
 
 export function shouldSearchGitHub(rawText: string, candidateQuery: string): boolean {
   if (!candidateQuery.trim()) return false;
-  if (/\b[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\b/.test(rawText)) return true;
   if (/github\.com\//i.test(rawText)) return true;
+  const textWithoutUrls = rawText.replace(/https?:\/\/\S+/gi, " ");
+  if (/\b[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\b/.test(textWithoutUrls)) return true;
   if (/(项目名|仓库名|repo\s*name|repository\s*name|叫|名为|是)\s*[:：]?\s*[A-Za-z][A-Za-z0-9_.-]{2,}/i.test(rawText)) return true;
   const hasGithubIntent = /github|git hub|repo|repository|仓库|开源项目/i.test(rawText);
   if (!hasGithubIntent) return false;

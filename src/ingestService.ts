@@ -64,6 +64,19 @@ export class IngestService {
     });
     const previewAction = await this.handlePreviewTextAction(request);
     if (previewAction) return previewAction;
+    if (hasOpenIdeaSession && isIdeaCancelText(request.text)) {
+      const cancelled = this.ideaConversation.cancelOpenSession(request);
+      if (cancelled) return cancelled;
+    }
+    if (isPreviewDecisionText(request.text)) {
+      return {
+        ok: true,
+        action: "chat_reply",
+        reply: "当前没有待确认的预览，所以这条操作不会写入 Obsidian。你可以先发链接、项目名或明确说“保存刚才这个”。",
+        writtenFiles: [],
+        warnings: []
+      };
+    }
     if (routed.shouldUseIdeaConversation) {
       const incoming = this.repo.createIncomingMessage({
         source: request.source,
@@ -505,6 +518,17 @@ export class IngestService {
     if (!pending) return undefined;
     const stored = this.store.get(pending.previewId) ?? this.repo.getStoredPreview(pending.previewId) ?? this.reconstructStoredPreview(pending.previewId);
     const isKnowledge = stored ? stored.detectedProjects.length === 0 && stored.knowledge.length > 0 : pending.detectedProjects.length === 0 && pending.knowledge.length > 0;
+    if (/^(取消|丢弃|不要了|算了|cancel|no|n)$/i.test(clean)) {
+      const result = await this.confirm({ previewId: pending.previewId, decision: "cancel" });
+      return {
+        ok: true,
+        action: "cancelled",
+        previewId: result.previewId,
+        reply: "已取消这条预览，没有写入 Obsidian。",
+        writtenFiles: [],
+        warnings: []
+      };
+    }
     if (/^(生成应用想法|只联想|展开想法)$/i.test(clean)) {
       const ideas = stored?.ideas ?? pending.ideas ?? [];
       return {
@@ -781,6 +805,14 @@ function knowledgeMatchScore(query: string, haystack: string): number {
   const chineseChars = [...new Set([...cleanQuery].filter((char) => /[\u3400-\u9fff]/.test(char)))];
   const charScore = chineseChars.filter((char) => cleanHaystack.includes(char)).length;
   return tokenScore + charScore;
+}
+
+function isIdeaCancelText(text: string): boolean {
+  return /^(取消|不聊了|先不聊|这个想法算了|这想法算了|不要这个想法|丢弃这个想法)$/i.test(text.trim());
+}
+
+function isPreviewDecisionText(text: string): boolean {
+  return /^(生成应用想法|只联想|展开想法|入库知识|只入库|入库|入库并保存想法|入库并联想|入库并展开)$/i.test(text.trim());
 }
 
 function nodeLabel(nodeName: string): string {

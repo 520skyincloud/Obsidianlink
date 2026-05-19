@@ -40,6 +40,13 @@ describe("agent behavior assumptions", () => {
     expect(parsed.githubRepos).toEqual([]);
   });
 
+  it("does not trigger GitHub search from non-GitHub URL path segments", () => {
+    const parsed = parseInput("记录这篇文章 https://example.com/article/agent-notes");
+
+    expect(parsed.githubRepos).toEqual([]);
+    expect(shouldSearchGitHub(parsed.rawText, parsed.candidateQuery)).toBe(false);
+  });
+
   it("does not treat dates as owner/repo shorthands", () => {
     const parsed = parseInput("11/05 刷到一个抖音开源项目");
 

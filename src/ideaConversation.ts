@@ -38,6 +38,24 @@ export class IdeaConversationService {
     return this.repo.getOpenConversationSession(request.source, request.senderId, request.chatId)?.mode === "discussing_idea";
   }
 
+  cancelOpenSession(request: AgentMessageRequest): AgentMessageResponse | undefined {
+    const key = sessionKey(request);
+    const session = this.sessions.get(key);
+    const persisted = this.repo.getOpenConversationSession(request.source, request.senderId, request.chatId);
+    const sessionId = session?.sessionId ?? persisted?.id;
+    if (!sessionId) return undefined;
+    if (session) this.sessions.delete(key);
+    this.repo.addConversationTurn({ sessionId, role: "user", text: request.text });
+    this.repo.closeConversationSession(sessionId);
+    return {
+      ok: true,
+      action: "chat_reply",
+      reply: "已取消这轮想法讨论，没有写入 Obsidian。你可以直接开始一个新想法，或者发链接让我重新识别。",
+      writtenFiles: [],
+      warnings: []
+    };
+  }
+
   async handle(request: AgentMessageRequest): Promise<AgentMessageResponse | undefined> {
     if (!isIdeaConversationCandidate(request.text, this.hasOpenSession(request))) return undefined;
     const session = this.sessionFor(request);
