@@ -15,6 +15,10 @@ export class PreviewStore {
     this.previews.set(preview.previewId, preview);
   }
 
+  delete(previewId: string): boolean {
+    return this.previews.delete(previewId);
+  }
+
   list(limit = 50): StoredPreview[] {
     return [...this.previews.values()]
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt))

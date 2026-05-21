@@ -315,10 +315,10 @@ export class IngestService {
       return { previewId: regenerated.previewId, status: "regenerated", writtenFiles: [], preview: regenerated };
     }
     if (request.decision === "cancel") {
-      stored.status = "cancelled";
-      this.store.update(stored);
-      this.repo.updatePreviewStatus(stored.previewId, "cancelled");
       const tracking = this.previewRuns.get(stored.previewId) ?? this.trackingForPreview(stored.previewId);
+      stored.status = "cancelled";
+      this.store.delete(stored.previewId);
+      this.repo.deletePreview(stored.previewId);
       if (tracking) this.repo.updateJob(tracking.jobId, { status: "cancelled", currentNode: "cancel_preview", finishedAt: nowIso() });
       return { previewId: stored.previewId, status: "cancelled", writtenFiles: [] };
     }
@@ -372,6 +372,21 @@ export class IngestService {
       }
     }
     return { previewId: stored.previewId, status: "confirmed", writtenFiles };
+  }
+
+  async cancelPreviews(previewIds: string[]): Promise<{ cancelled: string[]; failed: { previewId: string; error: string }[] }> {
+    const uniqueIds = [...new Set(previewIds.map((id) => id.trim()).filter(Boolean))];
+    const cancelled: string[] = [];
+    const failed: { previewId: string; error: string }[] = [];
+    for (const previewId of uniqueIds) {
+      try {
+        await this.confirm({ previewId, decision: "cancel" });
+        cancelled.push(previewId);
+      } catch (error) {
+        failed.push({ previewId, error: messageOf(error) });
+      }
+    }
+    return { cancelled, failed };
   }
 
   jobs(limit = 50) {

@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { config, missingRequiredConfig, resolveVaultPath } from "./config.js";
 import { sourceKindSchema } from "./connectors.js";
@@ -53,6 +54,10 @@ const supplementSchema = z.object({
   extraText: z.string().trim().min(1)
 });
 
+const bulkCancelPreviewsSchema = z.object({
+  previewIds: z.array(z.string().trim().min(1)).min(1).max(100)
+});
+
 const settingsSchema = z.object({
   obsidianVaultPath: z.string().trim().min(1).optional(),
   openaiBaseUrl: z.string().trim().url().optional(),
@@ -88,7 +93,7 @@ export function createApp(service = new IngestService(), vault = new ObsidianVau
   const app = express();
   app.use(express.json({ limit: "2mb", type: ["application/json", "application/*+json"] }));
   app.use(express.text({ limit: "2mb", type: ["text/*", "application/xml", "text/xml"] }));
-  app.use(express.static(path.resolve(process.cwd(), "src/public"), {
+  app.use(express.static(publicDir(), {
     etag: false,
     lastModified: false,
     setHeaders: (res) => {
@@ -825,6 +830,15 @@ export function createApp(service = new IngestService(), vault = new ObsidianVau
     res.json({ previews: service.dbPreviews(Number.isFinite(limit) ? limit : 50, status) });
   });
 
+  app.post("/api/previews/cancel", async (req, res, next) => {
+    try {
+      const { previewIds } = bulkCancelPreviewsSchema.parse(req.body);
+      res.json(await service.cancelPreviews(previewIds));
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.get("/api/previews/:previewId", (req, res) => {
     const preview = service.dbPreview(req.params.previewId);
     if (!preview) {
@@ -937,6 +951,16 @@ export function createApp(service = new IngestService(), vault = new ObsidianVau
   });
 
   return app;
+}
+
+export function startObsidianLinkServer(port = config.PORT, host = "127.0.0.1") {
+  const service = new IngestService();
+  const app = createApp(service);
+  const server = app.listen(port, host, () => {
+    console.log(`ObsidianLink listening on http://${host}:${port}`);
+    void startFeishuLongConnection(service);
+  });
+  return { app, server, service };
 }
 
 async function commandStatus(command: string, args: string[]) {
@@ -1334,10 +1358,13 @@ function publicUrlStatus(publicBaseUrl: string, source?: string) {
   const isLocal = /localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]/i.test(publicBaseUrl);
   const requiresHttps = ["wechat", "wecom", "dingtalk"].includes(source ?? "");
   if (source === "feishu" && process.env.FEISHU_LONG_CONNECTION_ENABLED === "true") {
+    const usable = isHttp && !isLocal;
     return {
       value: publicBaseUrl,
-      usableByExternalPlatforms: false,
-      message: "飞书当前使用长连接，普通消息和卡片按钮都不依赖公网回调；该地址仅作 webhook 备用。"
+      usableByExternalPlatforms: usable,
+      message: usable
+        ? "飞书长连接已作为主入口；该公网地址可作为事件回调备用。"
+        : "飞书长连接已作为主入口；当前备用回调仍是本机地址，外部平台无法直接访问。"
     };
   }
   const usable = isHttp && !isLocal && (!requiresHttps || isHttps);
@@ -1390,10 +1417,16 @@ function formatZodError(error: z.ZodError): string {
     .join("；");
 }
 
-if (process.env.NODE_ENV !== "test") {
-  const service = new IngestService();
-  createApp(service).listen(config.PORT, "127.0.0.1", () => {
-    console.log(`ObsidianLink listening on http://127.0.0.1:${config.PORT}`);
-    void startFeishuLongConnection(service);
-  });
+function publicDir(): string {
+  if (process.env.OBSIDIANLINK_PUBLIC_DIR) return process.env.OBSIDIANLINK_PUBLIC_DIR;
+  return path.resolve(process.cwd(), "src/public");
+}
+
+function isDirectRun(): boolean {
+  const entry = process.argv[1] ? path.resolve(process.argv[1]) : "";
+  return entry === fileURLToPath(import.meta.url);
+}
+
+if (process.env.NODE_ENV !== "test" && isDirectRun()) {
+  startObsidianLinkServer(config.PORT, "127.0.0.1");
 }

@@ -85,26 +85,11 @@
       flex-direction: column;
     }
 
-    .traffic {
-      display: flex;
-      gap: 9px;
-      padding: 20px 22px 18px;
-    }
-    .traffic span {
-      width: 13px;
-      height: 13px;
-      border-radius: 50%;
-      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08);
-    }
-    .traffic span:nth-child(1) { background: #ff5f57; }
-    .traffic span:nth-child(2) { background: #ffbd2e; }
-    .traffic span:nth-child(3) { background: #28c840; }
-
     .brand {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 2px 20px 26px;
+      padding: 24px 20px 26px;
     }
     .brand-logo {
       width: 42px;
@@ -437,6 +422,135 @@
       display: flex;
       flex-direction: column;
     }
+    .assistant-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 374px;
+      gap: 24px;
+      align-items: start;
+      max-width: 1220px;
+      margin: 0 auto;
+    }
+    .assistant-hero {
+      padding-top: 22px;
+      text-align: center;
+    }
+    .assistant-hero h2 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+    .assistant-hero p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    .big-composer {
+      margin-top: 34px;
+      border: 1px solid rgba(37, 99, 235, .26);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .86);
+      box-shadow: 0 18px 48px rgba(37, 99, 235, .10);
+      padding: 16px;
+    }
+    .big-composer textarea {
+      min-height: 116px;
+      border: 0;
+      box-shadow: none;
+      background: transparent;
+      font-size: 16px;
+      padding: 8px;
+    }
+    .big-composer textarea:focus { box-shadow: none; }
+    .conversation-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 22px;
+    }
+    .simple-message {
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .78);
+      padding: 8px 12px;
+      box-shadow: 0 8px 20px rgba(38, 52, 77, .04);
+      text-align: left;
+    }
+    .simple-message.user { background: linear-gradient(135deg, #edf4ff, #f8fbff); }
+    .pending-column {
+      position: sticky;
+      top: 0;
+      min-height: calc(100vh - 132px);
+    }
+    .preview-card {
+      border: 1px solid rgba(211, 219, 232, .92);
+      border-radius: 18px;
+      background: #fff;
+      padding: 16px;
+      box-shadow: var(--shadow-soft);
+      display: grid;
+      gap: 12px;
+    }
+    .preview-card.active {
+      border-color: rgba(37, 99, 235, .36);
+      box-shadow: 0 12px 32px rgba(37, 99, 235, .10);
+    }
+    .preview-top {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+    }
+    .preview-top.with-check {
+      grid-template-columns: 22px 44px minmax(0, 1fr) auto;
+    }
+    .preview-check {
+      width: 22px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+    }
+    .preview-check input {
+      width: 17px;
+      height: 17px;
+      padding: 0;
+      margin: 0;
+      accent-color: var(--blue);
+      box-shadow: none;
+    }
+    .preview-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #111827;
+      color: #fff;
+      font-weight: 850;
+    }
+    .preview-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .recent-panel {
+      margin-top: 26px;
+      text-align: left;
+    }
+    .recent-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      align-items: center;
+      padding: 11px 0;
+      border-bottom: 1px solid rgba(227, 232, 240, .72);
+    }
+    .recent-row:last-child { border-bottom: 0; }
     .chat-stream {
       display: flex;
       flex-direction: column;
@@ -589,7 +703,8 @@
     .toast.show { display: block; }
 
     @media (max-width: 1180px) {
-      .layout-home, .layout-wide, .layout-three { grid-template-columns: 1fr; }
+      .layout-home, .layout-wide, .layout-three, .assistant-grid { grid-template-columns: 1fr; }
+      .pending-column { position: static; min-height: 0; }
       .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .page-subtitle { max-width: 52vw; }
     }
@@ -606,7 +721,6 @@
 <body>
   <div class="app-window">
     <aside class="sidebar">
-      <div class="traffic" aria-hidden="true"><span></span><span></span><span></span></div>
       <div class="brand">
         <div class="brand-logo">OL</div>
         <div>
@@ -650,6 +764,6 @@
     </main>
   </div>
   <div class="toast" id="toast"></div>
-  <script src="/dashboard.js"></script>
+  <script src="/dashboard.js?v=20260519-4"></script>
 </body>
 </html>

@@ -4,9 +4,12 @@
   "description": "把飞书聊天里的抖音链接、GitHub 项目、网页文章和开发想法自动整理进本地 Obsidian 知识库的 AI 智能体。",
   "private": true,
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/src/server.js",
+    "desktop:dev": "npm run build && electron .",
+    "dmg": "rm -rf dist/mac-* dist/*.dmg dist/*.blockmap dist/builder-debug.yml dist/latest-mac.yml && npm run build && electron-builder --mac dmg",
     "service:start": "node scripts/obsidianlink.mjs start",
     "service:stop": "node scripts/obsidianlink.mjs stop",
     "service:restart": "node scripts/obsidianlink.mjs restart",
@@ -21,22 +24,78 @@
   },
   "dependencies": {
     "@langchain/core": "^1.1.45",
+    "@langchain/langgraph-checkpoint": "^1.0.2",
+    "@langchain/langgraph-sdk": "^1.9.4",
+    "@langchain/protocol": "^0.0.15",
     "@larksuiteoapi/node-sdk": "^1.63.1",
+    "@standard-schema/spec": "^1.1.0",
     "@types/better-sqlite3": "^7.6.13",
     "better-sqlite3": "^12.9.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "undici": "^7.25.0",
+    "uuid": "^10.0.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.5",
+    "electron": "^35.7.5",
+    "electron-builder": "^26.8.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
   "imports": {
     "#langgraph": "./vendor/langgraphjs/libs/langgraph-core/dist/index.js"
+  },
+  "build": {
+    "appId": "cn.sky.obsidianlink",
+    "productName": "ObsidianLink",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "asar": true,
+    "files": [
+      "dist/src/**/*",
+      "electron/**/*",
+      "vendor/langgraphjs/libs/langgraph-core/dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "src/public",
+        "to": "public"
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "identity": null
+    },
+    "dmg": {
+      "title": "ObsidianLink",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
   }
 }

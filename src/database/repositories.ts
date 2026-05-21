@@ -279,6 +279,11 @@ export class Repositories {
     this.db.prepare("UPDATE previews SET status = ?, updated_at = ? WHERE id = ?").run(status, new Date().toISOString(), previewId);
   }
 
+  deletePreview(previewId: string): boolean {
+    const result = this.db.prepare("DELETE FROM previews WHERE id = ?").run(previewId);
+    return result.changes > 0;
+  }
+
   listPreviews(limit = 50, status?: string) {
     const sql = status
       ? "SELECT * FROM previews WHERE status = ? ORDER BY created_at DESC LIMIT ?"

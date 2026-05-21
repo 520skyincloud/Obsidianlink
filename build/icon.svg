@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="130" y1="88" x2="880" y2="930" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4f74ff"/>
+      <stop offset="0.52" stop-color="#6b5df6"/>
+      <stop offset="1" stop-color="#4dc58a"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="260" y1="218" x2="760" y2="808" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#eaf2ff" stop-opacity="0.80"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="34" stdDeviation="38" flood-color="#20396f" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+  <rect x="96" y="96" width="832" height="832" rx="220" fill="url(#bg)"/>
+  <path d="M682 254c83 0 150 67 150 150v120c0 83-67 150-150 150H502L346 806c-28 24-71 4-71-33V674h-4c-83 0-150-67-150-150V404c0-83 67-150 150-150h411Z" fill="url(#ring)" filter="url(#shadow)"/>
+  <path d="M314 356h366c32 0 58 26 58 58v99c0 32-26 58-58 58H454l-84 74v-74h-56c-32 0-58-26-58-58v-99c0-32 26-58 58-58Z" fill="#ffffff"/>
+  <path d="M342 423h322M342 501h206" fill="none" stroke="#3867f4" stroke-width="42" stroke-linecap="round"/>
+</svg>

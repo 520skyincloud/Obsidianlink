@@ -162,12 +162,18 @@ export async function startFeishuLongConnection(service: IngestService): Promise
           });
           await handleFeishuCardAction(service, data, { sendChatReply: true });
         } catch (error) {
+          const action = summarizeFeishuCardAction(data);
+          const message = error instanceof Error ? error.message : String(error);
+          if (typeof action.chatId === "string" && action.chatId) {
+            await sendFeishuChatText(action.chatId, `卡片操作没有完成：${message}\n\n如果这是一张旧卡片，可能对应的待确认记录已经被取消或清理。请重新发送原链接/项目名，我会重新生成确认卡片。`).catch(() => undefined);
+            status.lastReplyAt = new Date().toISOString();
+          }
           repositories.addConnectorLog({
             source: "feishu",
             eventType: "card_action",
             status: "failed",
-            message: error instanceof Error ? error.message : String(error),
-            metadata: summarizeFeishuCardAction(data)
+            message,
+            metadata: action
           });
         }
       }
@@ -354,13 +360,37 @@ async function handleFeishuCardAction(service: IngestService, data: unknown, opt
       });
       return options.sendChatReply && action.chatId ? `已发送应用想法：${action.previewId}` : formatFeishuIdeas(stored);
     }
-    text = `没有找到预览：${action.previewId}`;
+    text = stalePreviewText(action.previewId);
   } else if (action.decision === "confirm") {
     const stored = repositories.getStoredPreview(action.previewId);
+    if (!stored) {
+      text = stalePreviewText(action.previewId);
+      if (options.sendChatReply && action.chatId) await sendFeishuChatText(action.chatId, text);
+      repositories.addConnectorLog({
+        source: "feishu",
+        eventType: "card_action",
+        status: "warning",
+        message: text.slice(0, 160),
+        metadata: action
+      });
+      return text;
+    }
     const result = await service.confirm({ previewId: action.previewId, decision: "confirm", writeMode: stored && isKnowledgePreview(stored) ? "knowledge_only" : "default" });
     text = formatFeishuConfirmResult(result, false);
   } else if (action.decision === "confirm_ideate") {
     const stored = repositories.getStoredPreview(action.previewId);
+    if (!stored) {
+      text = stalePreviewText(action.previewId);
+      if (options.sendChatReply && action.chatId) await sendFeishuChatText(action.chatId, text);
+      repositories.addConnectorLog({
+        source: "feishu",
+        eventType: "card_action",
+        status: "warning",
+        message: text.slice(0, 160),
+        metadata: action
+      });
+      return text;
+    }
     const result = await service.confirm({ previewId: action.previewId, decision: "confirm", writeMode: stored && isKnowledgePreview(stored) ? "knowledge_only" : "default" });
     const confirmText = formatFeishuConfirmResult(result, false);
     if (options.sendChatReply && action.chatId) {
@@ -389,6 +419,14 @@ async function handleFeishuCardAction(service: IngestService, data: unknown, opt
     metadata: action
   });
   return text;
+}
+
+function stalePreviewText(previewId: string): string {
+  return [
+    "没有找到预览：这张确认卡片已经过期，或对应的待确认记录已经被取消/清理。",
+    `Preview：${previewId}`,
+    "请重新发送原链接、项目名或想法，我会重新解析并发一张新的确认卡片。"
+  ].join("\n");
 }
 
 async function sendFeishuChatText(chatId: string, text: string): Promise<void> {

@@ -112,6 +112,34 @@ describe("persistent preview confirmation", () => {
     expect(before).toHaveLength(0);
     expect(after).toHaveLength(0);
   });
+
+  it("deletes a preview record when the user cancels saving it", async () => {
+    const messageId = `persist-cancel-${Date.now()}`;
+    const incoming = repositories.createIncomingMessage({
+      source: "web",
+      senderId: "cancel-user",
+      messageId,
+      text: "取消入库测试",
+      normalizedPayload: { text: "取消入库测试" }
+    });
+    const job = repositories.createJob({
+      messageRecordId: incoming.record.id,
+      source: "web",
+      senderId: "cancel-user",
+      status: "waiting_user",
+      intentType: "new_ingest"
+    });
+    const run = repositories.createRun({ jobId: job.id, status: "preview_generated", inputState: { text: "取消入库测试" } });
+    const preview = makeStoredPreview(messageId, "web", "cancel-user");
+    repositories.savePreview(preview, job.id, run.id, "# markdown");
+
+    const service = new IngestService(new PreviewStore(), {} as never, {} as never, {} as never, {} as never, {} as never, repositories);
+    const result = await service.confirm({ previewId: preview.previewId, decision: "cancel" });
+
+    expect(result.status).toBe("cancelled");
+    expect(repositories.getPreview(preview.previewId)).toBeUndefined();
+    expect(repositories.getJob(job.id)?.status).toBe("cancelled");
+  });
 });
 
 function makeStoredPreview(messageId: string, source: StoredPreview["request"]["source"], senderId: string): StoredPreview {
